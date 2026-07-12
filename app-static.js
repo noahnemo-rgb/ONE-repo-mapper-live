@@ -14,8 +14,8 @@ const esc = (s) => String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;',
 // ============================================================
 // Set these after you deploy the proxy to Vercel:
 //   https://github.com/noahnemo-rgb/repo-mapper-oauth-proxy
-const OAUTH_PROXY_URL = ''; // e.g. 'https://repo-mapper-proxy.vercel.app'  (leave blank to skip)
-const GITHUB_CLIENT_ID = ''; // Your GitHub OAuth App Client ID
+const OAUTH_PROXY_URL = 'https://repo-mapper-oauth-proxy.vercel.app';
+const GITHUB_CLIENT_ID = 'Ov23lirVPz3Flce1kgnf';
 
 // ============================================================
 // AUTH STATE
