@@ -1,6 +1,6 @@
 // Repo Mapper — MultiVerse (static GitHub Pages edition)
-// All GitHub API calls go directly to api.github.com from the browser.
-// AI summary features are gracefully disabled (no backend).
+// GitHub API calls go directly to api.github.com from the browser.
+// When signed in via GitHub OAuth, the rate limit rises from 60 → 5,000 req/hr.
 
 import * as d3 from 'https://esm.sh/d3@7';
 
@@ -10,13 +10,109 @@ const $$ = (s) => document.querySelectorAll(s);
 const esc = (s) => String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 
 // ============================================================
-// GITHUB API HELPERS (direct, no backend)
+// OAUTH CONFIG
+// ============================================================
+// Set these after you deploy the proxy to Vercel:
+//   https://github.com/noahnemo-rgb/repo-mapper-oauth-proxy
+const OAUTH_PROXY_URL = ''; // e.g. 'https://repo-mapper-proxy.vercel.app'  (leave blank to skip)
+const GITHUB_CLIENT_ID = ''; // Your GitHub OAuth App Client ID
+
+// ============================================================
+// AUTH STATE
+// ============================================================
+const AUTH_TOKEN_KEY = 'rm_gh_token';
+const AUTH_USER_KEY  = 'rm_gh_user';
+
+function getStoredToken() { return sessionStorage.getItem(AUTH_TOKEN_KEY); }
+function getStoredUser()  { try { return JSON.parse(sessionStorage.getItem(AUTH_USER_KEY) || 'null'); } catch { return null; } }
+function clearAuth()      { sessionStorage.removeItem(AUTH_TOKEN_KEY); sessionStorage.removeItem(AUTH_USER_KEY); }
+
+function isOAuthConfigured() { return OAUTH_PROXY_URL && GITHUB_CLIENT_ID; }
+
+async function initiateGitHubOAuth() {
+  if (!isOAuthConfigured()) { alert('OAuth proxy not configured. See README for setup instructions.'); return; }
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('rm_oauth_state', state);
+  const params = new URLSearchParams({ client_id: GITHUB_CLIENT_ID, scope: 'public_repo read:user', state });
+  window.location.href = `https://github.com/login/oauth/authorize?${params}`;
+}
+
+async function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (!code) return false;
+
+  const savedState = sessionStorage.getItem('rm_oauth_state');
+  if (state !== savedState) { console.warn('OAuth state mismatch'); return false; }
+
+  try {
+    const res = await fetch(`${OAUTH_PROXY_URL}/api/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (!data.access_token) throw new Error(data.error || 'No token returned');
+
+    sessionStorage.setItem(AUTH_TOKEN_KEY, data.access_token);
+
+    // Fetch user info to display "Signed in as @username"
+    const userRes = await fetch(`${OAUTH_PROXY_URL}/api/refresh`, {
+      headers: { 'Authorization': `Bearer ${data.access_token}` },
+    });
+    const userData = await userRes.json();
+    if (userData.authenticated) sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+
+    // Clean the URL
+    window.history.replaceState({}, '', window.location.pathname);
+    return true;
+  } catch (err) {
+    console.error('OAuth callback error:', err);
+    return false;
+  }
+}
+
+function renderAuthWidget() {
+  let bar = $('#authBar');
+  if (!bar) return;
+  const token = getStoredToken();
+  const user = getStoredUser();
+  if (token && user) {
+    bar.innerHTML = `
+      <img class="auth-avatar" src="${esc(user.avatar_url||'')}" width="22" height="22" alt="" />
+      <span class="auth-username">@${esc(user.login)}</span>
+      <span class="auth-ratelimit">${user.ratelimit_remaining || '?'}/${user.ratelimit_limit || '5000'} req/hr</span>
+      <button class="auth-btn auth-btn--out" id="signOutBtn">Sign out</button>`;
+    bar.querySelector('#signOutBtn')?.addEventListener('click', () => { clearAuth(); renderAuthWidget(); });
+  } else if (isOAuthConfigured()) {
+    bar.innerHTML = `
+      <span class="auth-hint">60 req/hr · </span>
+      <button class="auth-btn auth-btn--in" id="signInBtn">Sign in with GitHub</button>
+      <span class="auth-hint"> for 5,000 req/hr</span>`;
+    bar.querySelector('#signInBtn')?.addEventListener('click', initiateGitHubOAuth);
+  } else {
+    bar.innerHTML = `<span class="auth-hint muted">Rate limit: 60 req/hr (unauthenticated)</span>`;
+  }
+}
+
+// ============================================================
+// GITHUB API HELPERS (auth-aware)
 // ============================================================
 async function ghFetch(path) {
-  const r = await fetch(`${GH_API}${path}`, {
-    headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'repo-mapper-static' }
-  });
+  const token = getStoredToken();
+  const headers = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'repo-mapper-static' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const r = await fetch(`${GH_API}${path}`, { headers });
   if (r.status === 404) return { _status: 404 };
+  if (r.status === 403 || r.status === 429) {
+    const remaining = r.headers.get('x-ratelimit-remaining');
+    const reset = r.headers.get('x-ratelimit-reset');
+    if (remaining === '0') {
+      const resetDate = reset ? new Date(parseInt(reset)*1000).toLocaleTimeString() : 'soon';
+      return { _status: 429, _error: `GitHub rate limit exceeded. Resets at ${resetDate}. Sign in with GitHub for 5,000 req/hr.` };
+    }
+  }
   if (!r.ok) return { _status: r.status, _error: await r.text().catch(()=>'error') };
   return r.json();
 }
@@ -607,6 +703,13 @@ $$('.mode-pill').forEach(p => p.addEventListener('click', () => setMode(p.datase
 // HASH ROUTING
 // ============================================================
 window.addEventListener('load', async () => {
+  // Handle GitHub OAuth callback redirect (code in URL params)
+  if (window.location.search.includes('code=') && isOAuthConfigured()) {
+    const ok = await handleOAuthCallback();
+    if (ok) { renderAuthWidget(); }
+  }
+  renderAuthWidget();
+
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (!h) { setMode('single'); return; }
   const parts = h.split('/');
