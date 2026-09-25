@@ -33,7 +33,12 @@ async function initiateGitHubOAuth() {
   if (!isOAuthConfigured()) { alert('OAuth proxy not configured. See README for setup instructions.'); return; }
   const state = Math.random().toString(36).slice(2);
   sessionStorage.setItem('rm_oauth_state', state);
-  const params = new URLSearchParams({ client_id: GITHUB_CLIENT_ID, scope: 'public_repo read:user', state });
+  const params = new URLSearchParams({
+    client_id: GITHUB_CLIENT_ID,
+    scope: 'public_repo read:user',
+    state,
+    redirect_uri: window.location.origin + window.location.pathname,
+  });
   window.location.href = `https://github.com/login/oauth/authorize?${params}`;
 }
 
@@ -119,7 +124,10 @@ async function ghFetch(path) {
 
 async function getRepoMeta(owner, repo) {
   const r = await ghFetch(`/repos/${owner}/${repo}`);
-  if (r._status) throw new Error(`Repo not found (${r._status})`);
+  if (r._status === 404) throw new Error('Repo not found on GitHub. Check owner/repo.');
+  if (r._status === 403 || r._status === 429)
+    throw new Error(r._error || 'GitHub rate limit. Click Sign in with GitHub (5,000 req/hr), then Analyze again.');
+  if (r._status) throw new Error(r._error || `GitHub error (${r._status})`);
   return r;
 }
 
