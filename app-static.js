@@ -489,6 +489,27 @@ repos:
     governed_by: haseos
     description: >
       A worldwide restoration ecosystem focused on recycling refuse and restoring land and water.
+
+  - id: one-lovefire
+    name: ONE LoveFire
+    role: source-lineage
+    repo: github.com/noahnemo-rgb/ONE-LoveFire
+    maturity: drafting
+    tags: [source, lineage, monad, atar]
+    owner: noahnemo-rgb
+    parent: one-universe
+    description: >
+      Lineage and bridge. Source-philosophy house. Not HASEOS
+      governance. Not enrollment. Living Body (ONE Church) is
+      named; that GitHub repo is not created yet.
+    known_gaps:
+      - numbered pages are stubs
+      - ONE-Church repo not created
+    contains:
+      - README.md
+      - STATUS.md
+      - WHAT-THIS-IS-NOT.md
+      - HASEOS-RELATION.md
 `;
 
 const ONE_MULTIVERSE_RAW = `
