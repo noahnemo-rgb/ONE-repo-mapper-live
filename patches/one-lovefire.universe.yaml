@@ -1,0 +1,22 @@
+universe:
+  name: ONE LoveFire
+  tagline: Lineage and bridge. Not governance. Not enrollment.
+repos:
+  - id: one-lovefire
+    name: ONE LoveFire
+    role: root-philosophy
+    repo: github.com/noahnemo-rgb/ONE-LoveFire
+    maturity: drafting
+    tags: [source, lineage, monad, atar]
+    known_gaps:
+      - numbered pages are stubs
+      - ONE-Church repo not created
+  - id: one-church
+    name: ONE Church - Our New Era
+    role: living-body
+    parent: one-lovefire
+    repo: github.com/noahnemo-rgb/ONE-Church
+    maturity: placeholder
+    tags: [church, living-body]
+    known_gaps:
+      - repo-not-created

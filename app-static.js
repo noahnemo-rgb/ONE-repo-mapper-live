@@ -530,6 +530,16 @@ universes:
       - no ecosystems defined
       - no MVPs
 
+  - id: one-lovefire
+    name: ONE LoveFire
+    role: source-lineage
+    repo: github.com/noahnemo-rgb/ONE-LoveFire
+    maturity: drafting
+    description: Lineage and bridge. Source-philosophy house. Not HASEOS governance. Not enrollment.
+    known_gaps:
+      - numbered pages are stubs
+      - ONE-Church repo not created
+
 structural_gaps:
   - id: one-in-fun-net-universe-repo
     severity: major
@@ -547,6 +557,10 @@ structural_gaps:
     severity: critical
     description: haseos-spiral-swarm needs governance/ directory restructured per SCAFFOLD.md
     layer: governance
+  - id: one-church-repo
+    severity: major
+    description: github.com/noahnemo-rgb/ONE-Church does not exist yet. Living Body is named, not mapped as a live repo.
+    layer: universe
 `;
 
 const MULTIVERSE_DATA = {
@@ -565,13 +579,18 @@ const MULTIVERSE_DATA = {
       known_gaps: ['universe.yaml not yet created', 'governance layer missing', 'no ecosystems defined', 'no MVPs'] },
     { id: 'one-hyper-dimensional-universe', name: 'ONE Hyper-dimensional Universe', role: 'child-universe',
       repo: 'github.com/noahnemo-rgb/one-hyper-dimensional-universe', maturity: 'placeholder',
-      known_gaps: ['universe.yaml not yet created', 'governance layer missing', 'no ecosystems defined', 'no MVPs'] }
+      known_gaps: ['universe.yaml not yet created', 'governance layer missing', 'no ecosystems defined', 'no MVPs'] },
+    { id: 'one-lovefire', name: 'ONE LoveFire', role: 'source-lineage',
+      repo: 'github.com/noahnemo-rgb/ONE-LoveFire', maturity: 'drafting',
+      description: 'Lineage and bridge. Source-philosophy house. Not HASEOS governance. Not enrollment.',
+      known_gaps: ['numbered pages are stubs', 'ONE-Church repo not created'] }
   ],
   structural_gaps: [
     { id: 'haseos-restructure', severity: 'critical', description: 'haseos-spiral-swarm needs governance/ directory restructured per SCAFFOLD.md', layer: 'governance' },
     { id: 'one-in-fun-net-universe-repo', severity: 'major', description: 'Repository not yet created on GitHub', layer: 'universe' },
     { id: 'one-hyper-dimensional-universe-repo', severity: 'major', description: 'Repository not yet created on GitHub', layer: 'universe' },
-    { id: 'shared-templates', severity: 'minor', description: 'shared-templates/ folder not yet scaffolded', layer: 'multiverse' }
+    { id: 'shared-templates', severity: 'minor', description: 'shared-templates/ folder not yet scaffolded', layer: 'multiverse' },
+    { id: 'one-church-repo', severity: 'major', description: 'github.com/noahnemo-rgb/ONE-Church does not exist yet. Living Body is named, not mapped as a live repo.', layer: 'universe' }
   ]
 };
 

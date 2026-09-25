@@ -36,6 +36,16 @@ universes:
       - no ecosystems defined
       - no MVPs
 
+  - id: one-lovefire
+    name: ONE LoveFire
+    role: source-lineage
+    repo: github.com/noahnemo-rgb/ONE-LoveFire
+    maturity: drafting
+    description: Lineage and bridge. Source-philosophy house. Not HASEOS governance. Not enrollment.
+    known_gaps:
+      - numbered pages are stubs
+      - ONE-Church repo not created
+
 structural_gaps:
   - id: one-in-fun-net-universe-repo
     severity: major
@@ -53,3 +63,7 @@ structural_gaps:
     severity: critical
     description: haseos-spiral-swarm needs governance/ directory restructured per SCAFFOLD.md
     layer: governance
+  - id: one-church-repo
+    severity: major
+    description: github.com/noahnemo-rgb/ONE-Church does not exist yet. Living Body is named, not mapped as a live repo.
+    layer: universe
