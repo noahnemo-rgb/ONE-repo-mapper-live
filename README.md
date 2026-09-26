@@ -2,9 +2,9 @@
 
 > Map any GitHub repo. Visualize your entire universe.
 
-**Live app → [noahnemo-rgb.github.io/repo-mapper-live](https://noahnemo-rgb.github.io/repo-mapper-live/)**
+**Live app → [repo-mapper-live-8trm.vercel.app](https://repo-mapper-live-8trm.vercel.app/)**
 
-Repo Mapper is a static GitHub Pages dashboard that gives you instant, interactive views of any public GitHub repository — and lets you visualize an entire constellation of repos from a YAML manifest.
+Repo Mapper is a static Vercel dashboard that gives you instant, interactive views of any public GitHub repository — and lets you visualize an entire constellation of repos from a YAML manifest.
 
 ---
 
