@@ -703,6 +703,12 @@ function renderMultiverseView(data) {
       <span class="crumb">MVPs / Products</span>
     </div>
 
+    <section class="multiverse-map-section">
+      <h3 class="section-label">Constellation</h3>
+      <p class="universe-card-desc">Rooms of the house. Not ONE Universe furniture.</p>
+      <svg id="multiverseMap" class="universe-map"></svg>
+    </section>
+
     <section class="universe-cards-section">
       <h3 class="section-label">Universes</h3>
       <div class="universe-cards-grid">${universeCards}</div>
@@ -713,6 +719,7 @@ function renderMultiverseView(data) {
       <div class="structural-gaps-panel">${structuralGapsHtml}</div>
     </section>
   `;
+  renderMultiverseMap(data);
 }
 
 function getManifestList() {
@@ -1532,4 +1539,74 @@ function renderGapsTable(data) {
       <td class="flag-cell">${flags||'<span class="muted">—</span>'}</td>`;
     tbody.appendChild(tr);
   }
+}
+
+function renderMultiverseMap(data) {
+  const svg = d3.select('#multiverseMap');
+  if (svg.empty() || !svg.node()) return;
+  svg.selectAll('*').remove();
+  const wrap = svg.node().getBoundingClientRect();
+  const width = wrap.width || 800, height = 420;
+  svg.attr('viewBox', '0 0 ' + width + ' ' + height);
+  const size = { master: 30, 'reference-implementation': 26, 'source-lineage': 20, 'child-universe': 18 };
+  const hub = {
+    id: 'one-multiverse',
+    name: (data.multiverse && data.multiverse.name) || 'ONE Multiverse',
+    role: 'master',
+    maturity: 'scaffolded',
+    description: 'The house. Child universes hang here.'
+  };
+  const rooms = (data.universes || []).map(function (u) { return Object.assign({}, u); });
+  const nodes = [hub].concat(rooms).map(function (r) {
+    return Object.assign({}, r, {
+      radius: size[r.role] || 16,
+      color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8'
+    });
+  });
+  const links = rooms.map(function (u) {
+    return { source: 'one-multiverse', target: u.id, kind: 'parent' };
+  });
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', function (ev) {
+    g.attr('transform', ev.transform);
+  }));
+  const hubNode = nodes.find(function (x) { return x.id === 'one-multiverse'; });
+  hubNode.fx = width / 2; hubNode.fy = height / 2;
+  rooms.forEach(function (u, i) {
+    const n = nodes.find(function (x) { return x.id === u.id; });
+    const angle = (i / Math.max(rooms.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    n.x = width / 2 + Math.cos(angle) * 150;
+    n.y = height / 2 + Math.sin(angle) * 120;
+  });
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(140).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-280))
+    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.08))
+    .force('collide', d3.forceCollide().radius(function (d) { return d.radius + 18; }));
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', '#443a8c').attr('stroke-width', 1.8).attr('stroke-opacity', 0.75);
+  const nodeGroup = g.append('g').selectAll('g').data(nodes).join('g')
+    .style('cursor', function (d) { return d.repo ? 'pointer' : 'default'; })
+    .call(drag(sim))
+    .on('click', function (ev, d) {
+      ev.stopPropagation();
+      if (d.repo) window.open('https://' + d.repo, '_blank', 'noopener');
+    });
+  nodeGroup.append('circle').attr('r', function (d) { return d.radius + 4; })
+    .attr('fill', 'none').attr('stroke', function (d) { return d.color; })
+    .attr('stroke-opacity', 0.3).attr('stroke-width', 1);
+  nodeGroup.append('circle').attr('r', function (d) { return d.radius; })
+    .attr('fill', function (d) { return d.color; })
+    .attr('stroke', '#0a0820').attr('stroke-width', 2);
+  nodeGroup.append('text').text(function (d) { return d.name; })
+    .attr('text-anchor', 'middle').attr('dy', function (d) { return d.radius + 16; })
+    .attr('font-family', 'Cormorant Garamond, serif')
+    .attr('font-size', function (d) { return d.role === 'master' ? 16 : 13; })
+    .attr('font-weight', function (d) { return d.role === 'master' ? 600 : 500; })
+    .attr('fill', '#f5efe6').attr('pointer-events', 'none');
+  sim.on('tick', function () {
+    link.attr('x1', function (d) { return d.source.x; }).attr('y1', function (d) { return d.source.y; })
+        .attr('x2', function (d) { return d.target.x; }).attr('y2', function (d) { return d.target.y; });
+    nodeGroup.attr('transform', function (d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+  });
 }
