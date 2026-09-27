@@ -152,7 +152,7 @@
 <section class="view" data-view="universe" hidden>
   <div class="mode-header">
     <h2>Universe mode</h2>
-    <p class="lede">Visualize the entire ONE Universe constellation from <code>universe.yaml</code>.</p>
+    <p class="lede">The lamp reads the house tree: <code>ONE-Multiverse/MAP.yaml</code>. One pour. Champagne tower.</p>
   </div>
   <div class="manifest-controls">
     <select id="universePicker" class="picker"></select>
@@ -161,23 +161,27 @@
     </label>
   </div>
   <form id="addElementForm" class="add-element" autocomplete="off">
-    <input id="addName" type="text" placeholder="Name" required spellcheck="false" />
-    <input id="addRepo" type="text" placeholder="github.com/owner/repo" required spellcheck="false" />
+    <input id="addPath" class="add-path" type="text" placeholder="ONE-Multiverse/ONE-Universe/ONE-Ecology/ONE-Urban-Mines/Operations Manual" spellcheck="false" />
+    <input id="addName" type="text" placeholder="Name (if no path)" spellcheck="false" />
+    <input id="addRepo" type="text" placeholder="github.com/owner/repo (optional)" spellcheck="false" />
     <select id="addRole" aria-label="Role">
+      <option value="auto">role: auto from path</option>
+      <option value="ecology">ecology</option>
       <option value="ecosystem">ecosystem</option>
+      <option value="work-unit">work-unit</option>
       <option value="product">product</option>
       <option value="container">container</option>
       <option value="codex">codex</option>
       <option value="source-lineage">source-lineage</option>
     </select>
-    <select id="addParent" aria-label="Parent"></select>
+    <select id="addParent" aria-label="Parent override"></select>
     <label class="checkbox-label add-unlabeled">
       <input type="checkbox" id="addUnlabeled" />
       Unlabeled (no ONE mark, no HASEOS label)
     </label>
     <button type="submit" class="btn-primary">Add to map</button>
   </form>
-  <p class="muted small add-hint">Adds to this session’s map, punch-list, and graph. Download YAML to keep it. Does not write other repos.</p>
+  <p class="muted small add-hint">Pour at the top glass. Path last segment is the new leaf. Download <strong>MAP.yaml</strong> and commit it in <strong>ONE-Multiverse</strong>. The lamp only draws. It does not write Urban Mines, Oceanus, or any product repo.</p>
   <div id="universeLoading" class="loading-bar" hidden>Loading manifest…</div>
   <div id="universeResult" hidden>
     <div id="universeStats" class="stats-row" hidden>
@@ -215,8 +219,8 @@
     </div>
     <div class="panel" data-upanel="manifest" hidden>
       <div class="manifest-actions">
-        <button id="manifestCopyBtn" class="btn-secondary">Copy</button>
-        <button id="manifestDownloadBtn" class="btn-secondary">Download .yaml</button>
+        <button id="manifestCopyBtn" class="btn-secondary">Copy MAP.yaml</button>
+        <button id="manifestDownloadBtn" class="btn-secondary">Download MAP.yaml</button>
       </div>
       <pre id="manifestYaml" class="manifest-pre"></pre>
     </div>

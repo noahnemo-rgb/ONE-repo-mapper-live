@@ -23,6 +23,7 @@ Load a `universe.yaml` manifest to render your entire repo constellation:
 - Repo index table with maturity pills, parent hierarchy, and gap counts
 - Raw manifest viewer with copy + download
 - Upload your own manifest file
+- **Add-element path** — paste `ONE-Multiverse/ONE-Universe/ONE-Ecology/ONE-Urban-Mines/Operations Manual`. Last name is the leaf. Session only until you download YAML and commit it here.
 
 ### 🏗 Scaffold Mode
 Generate a full folder/file scaffold for every repo in a manifest — preview in-browser or download as `.zip`. Each file stub explains exactly what belongs there.

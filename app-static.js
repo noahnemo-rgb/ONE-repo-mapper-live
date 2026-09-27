@@ -615,6 +615,226 @@ const MULTIVERSE_DATA = {
   ]
 };
 
+
+// ============================================================
+// HOUSE TREE — champagne tower. Source of truth: ONE-Multiverse/MAP.yaml
+// ============================================================
+const HOUSE_MAP_URL = 'https://raw.githubusercontent.com/noahnemo-rgb/ONE-Multiverse/main/MAP.yaml';
+let HOUSE_MAP_RAW = `# MAP.yaml — top glass of the ONE Multiverse
+# Champagne tower. One pour. Path add writes this file only.
+# Appearance on this tree is not enrollment.
+# Oceanus wears no ONE mark and no HASEOS label.
+# Product repos are not updated by this file.
+
+house:
+  name: ONE Multiverse
+  id: one-multiverse
+  tagline: One Multiverse. Many Universes. Infinite Becoming.
+  repo: github.com/noahnemo-rgb/ONE-Multiverse
+  governance:
+    framework: HASEOS
+    full_name: HASEOS-HAIA-SAGI IDAO · HASEOS-HAOS-DSM
+    repo: github.com/noahnemo-rgb/haseos-spiral-swarm
+  steward: Noah Nemo (HITL)
+  edition: 2026-09-27
+
+children:
+  - id: haseos
+    name: HASEOS
+    role: governance
+    repo: github.com/noahnemo-rgb/haseos
+    maturity: drafting
+    description: >
+      Cross-cutting governance for the house. Constraint, not creed.
+      Not stamped onto unlabeled fields.
+    children:
+      - id: haos
+        name: HAOS — Human-AI Operating Subsystem
+        role: governance-subsystem
+        repo: github.com/noahnemo-rgb/haos
+        maturity: placeholder
+      - id: dsm
+        name: DSM — Defensive Sentinel Mode
+        role: governance-subsystem
+        repo: github.com/noahnemo-rgb/dsm
+        maturity: placeholder
+      - id: haia
+        name: HAIA — Human-AI Alliance
+        role: governance-subsystem
+        repo: github.com/noahnemo-rgb/haia
+        maturity: placeholder
+
+  - id: one-universe
+    name: ONE Universe
+    role: universe
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
+    maturity: scaffolded
+    description: Reference implementation. Structural grammar other universes may inherit.
+    children:
+      - id: one-ecology
+        name: ONE Ecology
+        role: ecology
+        repo: github.com/noahnemo-rgb/one-ecology
+        maturity: scaffolded
+        description: Thematic cluster. Member ecosystems sit in this glass.
+        children:
+          - id: one-church
+            name: ONE (Our New Era) Church
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/one-church
+            maturity: drafting
+            governed_by: haseos
+          - id: one-lovefire
+            name: ONE LoveFire
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/ONE-LoveFire
+            maturity: drafting
+            governed_by: haseos
+            description: >
+              Lineage of ONE Church practices — Yeshua ben Yosef's
+              unchanged agape-love gestalt. Not a child universe.
+          - id: oceanus
+            name: Oceanus
+            role: ecosystem
+            unlabeled: true
+            wears_one_mark: false
+            wears_haseos_label: false
+            repo: github.com/noahnemo-rgb/Oceanus
+            maturity: drafting
+            description: >
+              Boundless ocean nation. Mapped because ONE life arises
+              on coracle hulls. Wears no ONE mark and no HASEOS label.
+              Appearance is not enrollment.
+          - id: one-mesoflex-ai
+            name: ONE MesoFlex.ai
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/one-mesoflex-ai
+            maturity: mvp-partial
+            governed_by: haseos
+          - id: hpm
+            name: Human Potential Movement (HPM)
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/hpm
+            maturity: drafting
+            governed_by: haseos
+          - id: one-seedfeast-ai
+            name: ONE SeedFeast.ai
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/one-seedfeast-ai
+            maturity: mvp-partial
+            governed_by: haseos
+          - id: one-urban-mines
+            name: ONE Urban Mines
+            role: ecosystem
+            repo: github.com/noahnemo-rgb/one-urban-mines
+            maturity: drafting
+            governed_by: haseos
+            description: >
+              Restoration ecosystem. Recycle refuse at dump sites.
+              Restore adjacent water and land.
+
+  - id: in-fun-net-universe
+    name: In-Fun.net Universe
+    role: universe
+    repo: github.com/noahnemo-rgb/in-fun-net-universe
+    maturity: scaffolded
+    description: >
+      Child universe. Play meets purpose. HASEOS may arise.
+      No required creed. Brand association is not enrollment.
+    children: []
+
+  - id: hyper-dimensional-universe
+    name: Hyper-dimensional Universe
+    role: universe
+    repo: github.com/noahnemo-rgb/hyper-dimensional-universe
+    maturity: scaffolded
+    description: >
+      Child universe. Beyond space, beyond time. HASEOS may arise.
+      No required creed. Brand association is not enrollment.
+    children: []
+`;
+let HOUSE_TREE = null;
+
+function parseHouseMap(raw) {
+  const doc = jsyaml.load(raw);
+  if (!doc || !doc.house) throw new Error('MAP.yaml missing house:');
+  if (!Array.isArray(doc.children)) doc.children = [];
+  return doc;
+}
+
+function houseRoot() {
+  const t = HOUSE_TREE || parseHouseMap(HOUSE_MAP_RAW);
+  return {
+    id: (t.house && t.house.id) || 'one-multiverse',
+    name: (t.house && t.house.name) || 'ONE Multiverse',
+    role: 'house',
+    children: t.children || [],
+  };
+}
+
+function flattenTree(node, parentId, acc) {
+  acc = acc || [];
+  const row = { ...node };
+  delete row.children;
+  if (parentId) row.parent = parentId;
+  acc.push(row);
+  for (const c of (node.children || [])) flattenTree(c, node.id, acc);
+  return acc;
+}
+
+function findChildToken(children, token) {
+  const k = normKey(token);
+  return (children || []).find(c =>
+    normKey(c.id) === k ||
+    normKey(c.name) === k ||
+    normKey(c.id).replace(/-universe$/,'') === k ||
+    normKey(c.name).replace(/-universe$/,'') === k
+  ) || null;
+}
+
+function serializeHouseMap() {
+  return jsyaml.dump(HOUSE_TREE, { lineWidth: 88, noRefs: true, noCompatMode: true });
+}
+
+function downloadHouseMap() {
+  const raw = serializeHouseMap();
+  const blob = new Blob([raw], { type: 'text/yaml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'MAP.yaml';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function manifestFromSubtree(node) {
+  const repos = flattenTree(node);
+  return {
+    id: node.id,
+    universe: { name: node.name, tagline: node.description || '' },
+    repos,
+    raw: serializeHouseMap(),
+    stats: { total: repos.length },
+  };
+}
+
+async function refreshHouseMapFromGitHub() {
+  try {
+    const r = await fetch(HOUSE_MAP_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return false;
+    const raw = await r.text();
+    const doc = parseHouseMap(raw);
+    HOUSE_MAP_RAW = raw;
+    HOUSE_TREE = doc;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+HOUSE_TREE = parseHouseMap(HOUSE_MAP_RAW);
+
+
 // In-memory uploaded manifests
 const UPLOADED_MANIFESTS = new Map();
 
@@ -714,15 +934,103 @@ function renderMultiverseView(data) {
   renderMultiverseMap(data);
 }
 
+const SESSION_MANIFESTS = new Map(); // id -> raw yaml after path-add
+
 function getManifestList() {
-  const list = [{ id: 'one-universe', name: 'ONE Universe', builtin: true }];
-  for (const [id, { name }] of UPLOADED_MANIFESTS) list.push({ id, name, builtin: false });
+  const list = [{ id: 'one-multiverse', name: 'ONE Multiverse (whole house)', builtin: true }];
+  const seen = new Set(['one-multiverse']);
+  try {
+    for (const c of houseRoot().children || []) {
+      if (seen.has(c.id)) continue;
+      list.push({ id: c.id, name: c.name, builtin: true });
+      seen.add(c.id);
+    }
+  } catch (e) {}
+  for (const [id, { name }] of UPLOADED_MANIFESTS) {
+    if (!seen.has(id)) { list.push({ id, name, builtin: false }); seen.add(id); }
+  }
   return list;
 }
 
 function getManifestRaw(id) {
-  if (id === 'one-universe') return ONE_UNIVERSE_RAW;
+  if (id === 'one-multiverse' || id === 'one-universe' || findTreeNode(houseRoot(), id)) {
+    return serializeHouseMap();
+  }
+  if (SESSION_MANIFESTS.has(id)) return SESSION_MANIFESTS.get(id);
   return UPLOADED_MANIFESTS.get(id)?.raw || null;
+}
+
+function findTreeNode(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const c of (node.children || [])) {
+    const hit = findTreeNode(c, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function persistSessionManifest(m) {
+  if (!m || !m.id) return;
+  const raw = serializeManifest(m);
+  m.raw = raw;
+  SESSION_MANIFESTS.set(m.id, raw);
+}
+
+function emptyUniverseDoc(u) {
+  return {
+    universe: {
+      name: u.name,
+      id: u.id,
+      tagline: u.description || '',
+    },
+    repos: [],
+  };
+}
+
+function matchUniverseCard(token) {
+  const k = normKey(token);
+  const all = (CURRENT_MULTIVERSE || MULTIVERSE_DATA).universes || [];
+  return all.find(u => {
+    const idk = normKey(u.id);
+    const nk = normKey(u.name);
+    return idk === k || idk.replace(/-universe$/,'') === k
+      || nk === k || nk.replace(/-universe$/,'') === k;
+  }) || null;
+}
+
+function ensureUniverseCard(token) {
+  const existing = matchUniverseCard(token);
+  if (existing) return existing;
+  const data = CURRENT_MULTIVERSE || MULTIVERSE_DATA;
+  const id = slugId(token).replace(/-universe$/,'') + '-universe';
+  const card = {
+    id,
+    name: token,
+    role: 'child-universe',
+    maturity: 'placeholder',
+    repo: '',
+    description: `${token}. Session add on the map. Download the map bundle to keep. Appearance is not enrollment.`,
+    known_gaps: ['just-added — no ecosystems scanned yet'],
+  };
+  data.universes.push(card);
+  CURRENT_MULTIVERSE = data;
+  return card;
+}
+
+function loadOrCreateUniverseManifest(card) {
+  const raw = getManifestRaw(card.id);
+  if (raw) {
+    const doc = parseManifest(raw);
+    const structured = structureManifest(doc);
+    return { id: card.id, universe: structured.universe, repos: structured.repos, stats: structured.stats, raw };
+  }
+  const doc = emptyUniverseDoc(card);
+  const structured = structureManifest(doc);
+  const m = { id: card.id, universe: structured.universe, repos: structured.repos, stats: structured.stats, raw: '' };
+  persistSessionManifest(m);
+  populateManifestPickers();
+  return m;
 }
 
 // ============================================================
@@ -738,7 +1046,7 @@ function setMode(mode) {
   }
   if (mode === 'universe') {
     populateManifestPickers();
-    if (!CURRENT_MANIFEST) loadManifest('one-universe');
+    if (!CURRENT_MANIFEST) loadManifest('one-multiverse');
   }
   if (mode === 'scaffold') { populateManifestPickers(); }
   if (mode === 'gaps') { populateManifestPickers(); }
@@ -750,6 +1058,7 @@ $$('.mode-pill').forEach(p => p.addEventListener('click', () => setMode(p.datase
 // HASH ROUTING
 // ============================================================
 window.addEventListener('load', async () => {
+  await refreshHouseMapFromGitHub();
   // Handle GitHub OAuth callback redirect (code in URL params)
   if (window.location.search.includes('code=') && isOAuthConfigured()) {
     const ok = await handleOAuthCallback();
@@ -1088,29 +1397,57 @@ function populateManifestPickers() {
   });
 }
 
-$('#universePicker').addEventListener('change', e=>loadManifest(e.target.value));
-document.querySelector('.upload-label')?.addEventListener('click', ()=>$('#universeUploadInput').click());
-$('#addElementForm')?.addEventListener('submit', e=>{
-  e.preventDefault();
-  if (!CURRENT_MANIFEST) { alert('Load a universe first.'); return; }
-  const name = ($('#addName')?.value||'').trim();
-  let repo = ($('#addRepo')?.value||'').trim().replace(/^https?:\/\//,'').replace(/\.git$/,'');
-  const role = $('#addRole')?.value || 'ecosystem';
-  const parent = $('#addParent')?.value || undefined;
-  const unlabeled = !!$('#addUnlabeled')?.checked;
-  if (!name || !repo) return;
-  if (!repo.includes('/')) { alert('Repo needs owner/name'); return; }
-  if (!repo.startsWith('github.com/')) repo = 'github.com/' + repo.replace(/^github\.com\//,'');
-  let id = slugId(name);
-  const ids = new Set(CURRENT_MANIFEST.repos.map(r=>r.id));
-  if (ids.has(id)) id = id + '-' + Date.now().toString(36).slice(-4);
+function normKey(s) {
+  return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+const HOUSE_KEYS = new Set(['one-multiverse','one-multiverse-house','multiverse']);
+const THIS_UNIVERSE_KEYS = new Set(['one-universe','one-universe-house']);
+
+function findRepoByToken(repos, token) {
+  const k = normKey(token);
+  return (repos||[]).find(r => r.id === k || normKey(r.id) === k || normKey(r.name) === k);
+}
+
+function inferRoleFromName(name, parentRole) {
+  const n = String(name||'').toLowerCase();
+  if (/\buniverse\b/.test(n)) return 'universe';
+  if (/\becology\b/.test(n)) return 'ecology';
+  if (/\b(manual|tome|charter|constitution|ops|operations)\b/.test(n)) return 'work-unit';
+  if (/\bcodex\b/.test(n)) return 'codex';
+  if (parentRole === 'ecology') return 'ecosystem';
+  if (parentRole === 'ecosystem' || parentRole === 'work-unit' || parentRole === 'product') return 'work-unit';
+  if (parentRole === 'universe' || !parentRole) return 'ecosystem';
+  return 'work-unit';
+}
+
+function parseMapPath(path) {
+  const raw = String(path||'').split('/').map(s=>s.trim()).filter(Boolean);
+  const rest = raw.filter(t => !HOUSE_KEYS.has(normKey(t)));
+  let universeToken = null;
+  const tokens = [];
+  for (let i = 0; i < rest.length; i++) {
+    const t = rest[i];
+    const k = normKey(t);
+    const matched = matchUniverseCard(t);
+    if (i === 0 && (matched || THIS_UNIVERSE_KEYS.has(k) || /universe/.test(k))) {
+      universeToken = matched ? matched.name : t;
+      continue;
+    }
+    tokens.push(t);
+  }
+  return { raw, tokens, universeToken };
+}
+
+function makeAddedRow({ id, name, role, parent, repo, unlabeled }) {
   const row = {
-    id, name, role, repo, maturity: 'placeholder',
+    id, name, role,
+    repo: repo || '',
+    maturity: 'placeholder',
     tags: unlabeled ? [role, 'unlabeled'] : [role],
-    owner: repo.split('/')[1] || 'noahnemo-rgb',
+    owner: (repo && repo.split('/')[1]) || 'noahnemo-rgb',
     description: unlabeled
       ? `${name}. Mapped here. Wears no ONE mark and no HASEOS label. Appearance is not enrollment.`
-      : `${name}.`,
+      : `${name}. Session add — download YAML to keep.`,
     known_gaps: ['just-added — punch-list not scanned yet'],
   };
   if (parent) row.parent = parent;
@@ -1119,12 +1456,85 @@ $('#addElementForm')?.addEventListener('submit', e=>{
     row.wears_one_mark = false;
     row.wears_haseos_label = false;
   }
-  CURRENT_MANIFEST.repos.push(row);
-  CURRENT_MANIFEST.raw = serializeManifest(CURRENT_MANIFEST);
+  return row;
+}
+
+$('#universePicker').addEventListener('change', e=>loadManifest(e.target.value));
+document.querySelector('.upload-label')?.addEventListener('click', ()=>$('#universeUploadInput').click());
+$('#addElementForm')?.addEventListener('submit', e=>{
+  e.preventDefault();
+  const path = ($('#addPath')?.value||'').trim();
+  let name = ($('#addName')?.value||'').trim();
+  let repo = ($('#addRepo')?.value||'').trim().replace(/^https?:\/\//,'').replace(/\.git$/,'');
+  const roleChoice = $('#addRole')?.value || 'auto';
+  const unlabeled = !!$('#addUnlabeled')?.checked;
+  if (repo && !repo.includes('/')) { alert('Repo needs owner/name, or leave it blank.'); return; }
+  if (repo && !repo.startsWith('github.com/')) repo = 'github.com/' + repo.replace(/^github\.com\//,'');
+
+  if (!HOUSE_TREE) HOUSE_TREE = parseHouseMap(HOUSE_MAP_RAW);
+
+  const tokens = path
+    ? path.split('/').map(s=>s.trim()).filter(Boolean).filter(t => !HOUSE_KEYS.has(normKey(t)))
+    : (name ? [name] : []);
+  if (!tokens.length) { alert('Paste a path from ONE-Multiverse downward.'); return; }
+
+  let cursor = houseRoot();
+  // houseRoot is a view; attach created children onto HOUSE_TREE.children
+  let parentList = HOUSE_TREE.children;
+  let parentRole = 'house';
+  let leaf = null;
+  const created = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const last = i === tokens.length - 1;
+    let child = findChildToken(parentList, token);
+    if (child) {
+      cursor = child;
+      parentList = child.children || (child.children = []);
+      parentRole = child.role || parentRole;
+      if (last) {
+        leaf = child;
+        alert(child.name + ' is already on the tree.');
+      }
+      continue;
+    }
+    const display = last && name ? name : token;
+    const role = (last && roleChoice !== 'auto') ? roleChoice : inferRoleFromName(display, parentRole);
+    const node = {
+      id: slugId(display),
+      name: display,
+      role,
+      repo: last ? repo : '',
+      maturity: 'placeholder',
+      children: [],
+    };
+    if (last && unlabeled) {
+      node.unlabeled = true;
+      node.wears_one_mark = false;
+      node.wears_haseos_label = false;
+    }
+    parentList.push(node);
+    created.push(node);
+    cursor = node;
+    parentList = node.children;
+    parentRole = role;
+    if (last) leaf = node;
+  }
+
+  if (!leaf) return;
+  populateManifestPickers();
+  CURRENT_MANIFEST = manifestFromSubtree(houseRoot());
+  CURRENT_MANIFEST.id = 'one-multiverse';
+  if ($('#universePicker')) $('#universePicker').value = 'one-multiverse';
   renderUniverse(CURRENT_MANIFEST);
-  $('#addName').value='';
-  $('#addRepo').value='';
-  showRepoDetail(row);
+  if ($('#addPath')) $('#addPath').value='';
+  if ($('#addName')) $('#addName').value='';
+  if ($('#addRepo')) $('#addRepo').value='';
+  showRepoDetail(leaf);
+  if (created.length) {
+    console.info('tower pour:', created.map(n => n.name + ' (' + n.role + ')').join(' · '));
+  }
 });
 
 $('#universeUploadInput').addEventListener('change', async e=>{
@@ -1145,6 +1555,15 @@ async function loadManifest(id) {
   $('#universeLoading').hidden=false;
   $('#universeResult').hidden=true;
   try {
+    const root = houseRoot();
+    const node = (id === 'one-multiverse') ? root : findTreeNode(root, id);
+    if (node) {
+      CURRENT_MANIFEST = manifestFromSubtree(node);
+      CURRENT_MANIFEST.id = id;
+      history.replaceState(null,'',`#universe/${id}`);
+      renderUniverse(CURRENT_MANIFEST);
+      return;
+    }
     const raw = getManifestRaw(id);
     if (!raw) throw new Error('Manifest not found: ' + id);
     const doc = parseManifest(raw);
@@ -1242,14 +1661,64 @@ function renderRepoIndex(m) {
   }
 }
 $('#manifestCopyBtn').addEventListener('click',()=>{
-  navigator.clipboard.writeText(CURRENT_MANIFEST.raw);
+  navigator.clipboard.writeText(serializeHouseMap());
   const btn=$('#manifestCopyBtn'); btn.textContent='Copied!';
-  setTimeout(()=>btn.textContent='Copy',1400);
+  setTimeout(()=>btn.textContent='Copy MAP.yaml',1400);
 });
 $('#manifestDownloadBtn').addEventListener('click',()=>{
-  const blob=new Blob([CURRENT_MANIFEST.raw],{type:'text/yaml'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='universe.yaml'; a.click();
+  downloadHouseMap();
+});
+
+function serializeMultiverseYaml(data) {
+  const d = data || CURRENT_MULTIVERSE || MULTIVERSE_DATA;
+  return jsyaml.dump({
+    multiverse: d.multiverse,
+    universes: d.universes,
+    structural_gaps: d.structural_gaps || [],
+  }, { lineWidth: 88, noRefs: true });
+}
+
+function fileNameForManifest(id) {
+  if (id === 'one-universe') return 'one-universe.yaml';
+  return id.replace(/-universe$/,'') + '.universe.yaml';
+}
+
+$('#mapBundleBtn')?.addEventListener('click', async ()=>{
+  if (typeof JSZip === 'undefined') {
+    alert('JSZip not loaded — use Download this .yaml instead.');
+    return;
+  }
+  if (CURRENT_MANIFEST) persistSessionManifest(CURRENT_MANIFEST);
+  const zip = new JSZip();
+  const root = zip.folder('map-bundle');
+  root.file('multiverse.yaml', serializeMultiverseYaml());
+  const ids = new Set(['one-universe', ...SESSION_MANIFESTS.keys(), ...UPLOADED_MANIFESTS.keys()]);
+  if (CURRENT_MANIFEST?.id) ids.add(CURRENT_MANIFEST.id);
+  for (const id of ids) {
+    const raw = getManifestRaw(id);
+    if (raw) root.file(fileNameForManifest(id), raw);
+  }
+  root.file('COMMIT_INSTRUCTIONS.md',
+`# Map bundle — HITL commit
+
+These YAML files are the constellation. They are not product repos.
+
+1. Copy into ~/ONE-repo-mapper-live/
+   - multiverse.yaml
+   - one-universe.yaml
+   - any *.universe.yaml for child universes you added
+2. git add those files
+3. git commit && git push origin HEAD
+
+Vercel redraws the lamp from this mapper repo.
+Do not copy these rows into ONE-Multiverse, Urban Mines, Oceanus, or HASEOS repos.
+`);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ONE-map-bundle.zip';
+  a.click();
   URL.revokeObjectURL(url);
 });
 

@@ -1,5 +1,27 @@
 # Repo Mapper Static — Changelog
 
+## 2026-09-27 — Champagne tower
+
+- Source of truth moved to `ONE-Multiverse/MAP.yaml`. One tree. One pour.
+- Lamp fetches that file (embed is fallback only).
+- Path add writes the in-memory tree. Download `MAP.yaml` and commit it in **ONE-Multiverse**.
+- Product repos are not written. Oceanus stays unlabeled.
+
+## 2026-09-27 — Multi-tier map bundle
+
+- A path may name any universe in the house, not only ONE Universe.
+- Compute walks Multiverse card → universe yaml → parents → leaf. Missing middle names and a missing child-universe card are created in session.
+- **Download map bundle** emits `multiverse.yaml` + `one-universe.yaml` + any child `*.universe.yaml`. One HITL commit in this mapper repo keeps every tier.
+- Still does not write ONE-Multiverse, Urban Mines, Oceanus, or any product repo.
+
+## 2026-09-27 — Path add-element
+
+- Add-element accepts a map path, e.g. `ONE-Multiverse/ONE-Universe/ONE-Ecology/ONE-Urban-Mines/Operations Manual`.
+- Path is an address on this dashboard, not a GitHub folder and not a write into the ONE-Multiverse repo.
+- Last segment is the new leaf. Existing parents are reused. Missing middle names are created in this session only.
+- Role is inferred from the leaf name and its parent (manual → work-unit; under ecology → ecosystem). Override if needed.
+- Repo URL is optional. Download YAML, then commit it in this mapper repo to keep the row. Vercel does not update from Add-element alone.
+
 ## 2026-09-27 — House slug + LoveFire ecosystem
 
 - Exact house slug `noahnemo-rgb/ONE-` → `noahnemo-rgb/ONE-Multiverse` (LoveFire / Church slugs untouched).
