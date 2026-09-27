@@ -63,7 +63,7 @@
     <div id="loadingBar" class="loading-bar" hidden>Fetching repo data…</div>
     <div class="examples">
       <span>Try:</span>
-      <button class="chip" data-url="noahnemo-rgb/ONE-">noahnemo-rgb/ONE-</button>
+      <button class="chip" data-url="noahnemo-rgb/ONE-Multiverse">noahnemo-rgb/ONE-Multiverse</button>
       <button class="chip" data-url="facebook/react">facebook/react</button>
       <button class="chip" data-url="expressjs/express">expressjs/express</button>
     </div>
@@ -160,6 +160,24 @@
       Upload manifest <input type="file" id="universeUploadInput" accept=".yaml,.yml" hidden />
     </label>
   </div>
+  <form id="addElementForm" class="add-element" autocomplete="off">
+    <input id="addName" type="text" placeholder="Name" required spellcheck="false" />
+    <input id="addRepo" type="text" placeholder="github.com/owner/repo" required spellcheck="false" />
+    <select id="addRole" aria-label="Role">
+      <option value="ecosystem">ecosystem</option>
+      <option value="product">product</option>
+      <option value="container">container</option>
+      <option value="codex">codex</option>
+      <option value="source-lineage">source-lineage</option>
+    </select>
+    <select id="addParent" aria-label="Parent"></select>
+    <label class="checkbox-label add-unlabeled">
+      <input type="checkbox" id="addUnlabeled" />
+      Unlabeled (no ONE mark, no HASEOS label)
+    </label>
+    <button type="submit" class="btn-primary">Add to map</button>
+  </form>
+  <p class="muted small add-hint">Adds to this session’s map, punch-list, and graph. Download YAML to keep it. Does not write other repos.</p>
   <div id="universeLoading" class="loading-bar" hidden>Loading manifest…</div>
   <div id="universeResult" hidden>
     <div id="universeStats" class="stats-row" hidden>
@@ -179,6 +197,7 @@
         <button id="repoSideClose" class="side-close">✕</button>
         <h3 id="rsName"></h3>
         <div id="rsRole" class="muted small"></div>
+        <span id="rsUnlabeled" class="unlabeled-chip" hidden>Unlabeled field · not enrollment</span>
         <span id="rsMaturity" class="maturity-pill"></span>
         <p id="rsDesc"></p>
         <div id="rsTagsWrap" hidden><strong>Tags:</strong> <span id="rsTags" class="tag-list"></span></div>

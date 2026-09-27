@@ -57,7 +57,7 @@ repos:
   - id: one-universe
     name: ONE Universe
     role: master
-    repo: github.com/noahnemo-rgb/one-universe
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
     maturity: scaffolded
     tags: [master, brand, manifest]
     owner: noahnemo-rgb
@@ -182,6 +182,7 @@ repos:
       - STATUS.md
     members:
       - one-church
+      - one-lovefire
       - oceanus
       - one-mesoflex-ai
       - hpm
@@ -189,7 +190,7 @@ repos:
       - one-urban-mines
 
 # ============================================================
-# Layer 2 — The six ecosystems
+# Layer 2 — Ecosystems
 # ============================================================
 
   - id: one-church
@@ -223,21 +224,22 @@ repos:
   - id: oceanus
     name: Oceanus
     role: ecosystem
-    repo: github.com/noahnemo-rgb/oceanus
+    repo: github.com/noahnemo-rgb/Oceanus
     maturity: drafting
-    tags: [ecosystem, sovereign-nation, maritime]
+    tags: [ecosystem, sovereign-nation, maritime, unlabeled]
     owner: noahnemo-rgb
     parent: one-ecology
-    governed_by: haseos
+    unlabeled: true
+    wears_one_mark: false
+    wears_haseos_label: false
     description: >
-      A boundless, borderless worldwide ONE sovereign ocean nation.
-      Currently lacking its constitution — flagged as a critical gap.
-    known_gaps:
-      - constitution                 # primary missing artifact
-      - citizenship-protocol
-      - maritime-law-framework
+      Boundless, borderless ocean nation. Mapped inside ONE Universe
+      because ONE life arises on coracle hulls and decks. Wears no ONE
+      mark and no HASEOS label. Free-willed sovereignty and agency;
+      no creed required. Appearance on this map is not enrollment.
+    known_gaps: []
     contains:
-      - constitution/                # to be drafted
+      - constitution/
       - citizenship/
       - maritime-law/
       - territory/
@@ -341,19 +343,20 @@ repos:
 
   - id: one-lovefire
     name: ONE LoveFire
-    role: source-lineage
+    role: ecosystem
     repo: github.com/noahnemo-rgb/ONE-LoveFire
     maturity: drafting
-    tags: [source, lineage, monad, atar]
+    tags: [ecosystem, lineage, church-gestalt, agape]
     owner: noahnemo-rgb
-    parent: one-universe
+    parent: one-ecology
+    governed_by: haseos
     description: >
-      Lineage and bridge. Source-philosophy house. Not HASEOS
-      governance. Not enrollment. Living Body (ONE Church) is
-      named; that GitHub repo is not created yet.
+      Distinct ecosystem inside ONE Universe. Key component of the
+      lineage of Our New Era (ONE) Church practices — Yeshua ben Yosef's
+      original unchanged agape-love gestalt. Not a child universe.
+      Not HASEOS-as-creed. Not enrollment.
     known_gaps:
       - numbered pages are stubs
-      - ONE-Church repo not created
     contains:
       - README.md
       - STATUS.md

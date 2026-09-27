@@ -71,7 +71,7 @@ repos:
   - id: one-universe
     name: ONE Universe
     role: master
-    repo: github.com/noahnemo-rgb/ONE-
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
     maturity: scaffolded
     description: Master brand repo.
     tags: [master, governance]
@@ -95,7 +95,7 @@ Maturity levels: `placeholder` → `scaffolded` → `drafting` → `mvp-partial`
 
 ## ONE Multiverse
 
-Repo Mapper is a tool in the [ONE Multiverse](https://github.com/noahnemo-rgb/ONE-) ecosystem — a canonical hierarchy of universes, container layers, ecosystems, and MVPs governed by [HASEOS](https://github.com/noahnemo-rgb/haseos-spiral-swarm).
+Repo Mapper is a tool in the [ONE Multiverse](https://github.com/noahnemo-rgb/ONE-Multiverse) ecosystem — a canonical hierarchy of universes, container layers, ecosystems, and MVPs governed by [HASEOS](https://github.com/noahnemo-rgb/haseos-spiral-swarm).
 
 ---
 

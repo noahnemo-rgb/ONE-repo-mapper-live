@@ -1,5 +1,16 @@
 # Repo Mapper Static — Changelog
 
+## 2026-09-27 — House slug + LoveFire ecosystem
+
+- Exact house slug `noahnemo-rgb/ONE-` → `noahnemo-rgb/ONE-Multiverse` (LoveFire / Church slugs untouched).
+- ONE LoveFire is not a universe. It is an ecosystem inside ONE Universe (`parent: one-ecology`): lineage of ONE Church and Yeshua ben Yosef's unchanged agape-love gestalt.
+
+## 2026-09-27 — Oceanus unlabeled + add-element
+
+- Oceanus stays inside ONE Universe geography (`parent: one-ecology`).
+- Oceanus card wears no ONE mark and no HASEOS label. `governed_by` omitted. Appearance is not enrollment.
+- Universe mode: Add-element form writes into this session’s map, punch-list, and graph. Download YAML to keep. Does not edit other repos.
+
 ## 2026-06-17 — ONE Multiverse Mode
 
 ### Summary

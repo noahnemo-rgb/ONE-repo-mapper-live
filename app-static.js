@@ -353,7 +353,7 @@ repos:
   - id: one-universe
     name: ONE Universe
     role: master
-    repo: github.com/noahnemo-rgb/ONE-
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
     maturity: scaffolded
     tags: [master, brand, manifest]
     owner: noahnemo-rgb
@@ -415,14 +415,14 @@ repos:
   - id: one-ecology
     name: ONE Ecology
     role: container
-    repo: github.com/noahnemo-rgb/ONE-
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
     maturity: scaffolded
     tags: [container, ecology, ecosystems]
     owner: noahnemo-rgb
     parent: one-universe
     description: >
-      Container grouping the six member ecosystems.
-    members: [one-church, oceanus, one-mesoflex-ai, hpm, one-seedfeast-ai, one-urban-mines]
+      Container grouping the member ecosystems.
+    members: [one-church, one-lovefire, oceanus, one-mesoflex-ai, hpm, one-seedfeast-ai, one-urban-mines]
 
   - id: one-church
     name: ONE Church
@@ -442,13 +442,18 @@ repos:
     role: ecosystem
     repo: github.com/noahnemo-rgb/Oceanus
     maturity: drafting
-    tags: [ecosystem, sovereign-nation, maritime]
+    tags: [ecosystem, sovereign-nation, maritime, unlabeled]
     owner: noahnemo-rgb
     parent: one-ecology
-    governed_by: haseos
+    unlabeled: true
+    wears_one_mark: false
+    wears_haseos_label: false
     description: >
-      A boundless, borderless worldwide ONE sovereign ocean nation.
-    known_gaps: [constitution, citizenship-protocol, maritime-law-framework]
+      Boundless, borderless ocean nation. Mapped inside ONE Universe
+      because ONE life arises on coracle hulls and decks. Wears no ONE
+      mark and no HASEOS label. Free-willed sovereignty and agency;
+      no creed required. Appearance on this map is not enrollment.
+    known_gaps: []
 
   - id: one-mesoflex-ai
     name: ONE MesoFlex.ai
@@ -500,19 +505,20 @@ repos:
 
   - id: one-lovefire
     name: ONE LoveFire
-    role: source-lineage
+    role: ecosystem
     repo: github.com/noahnemo-rgb/ONE-LoveFire
     maturity: drafting
-    tags: [source, lineage, monad, atar]
+    tags: [ecosystem, lineage, church-gestalt, agape]
     owner: noahnemo-rgb
-    parent: one-universe
+    parent: one-ecology
+    governed_by: haseos
     description: >
-      Lineage and bridge. Source-philosophy house. Not HASEOS
-      governance. Not enrollment. Living Body (ONE Church) is
-      named; that GitHub repo is not created yet.
+      Distinct ecosystem inside ONE Universe. Key component of the
+      lineage of Our New Era (ONE) Church practices — Yeshua ben Yosef's
+      original unchanged agape-love gestalt. Not a child universe.
+      Not HASEOS-as-creed. Not enrollment.
     known_gaps:
       - numbered pages are stubs
-      - ONE-Church repo not created
     contains:
       - README.md
       - STATUS.md
@@ -533,7 +539,7 @@ universes:
     name: ONE Universe
     role: reference-implementation
     manifest: one-universe
-    repo: github.com/noahnemo-rgb/ONE-
+    repo: github.com/noahnemo-rgb/ONE-Multiverse
     maturity: scaffolded
     description: The reference implementation. All child universes inherit its structural grammar.
     
@@ -565,16 +571,6 @@ universes:
       - no ecosystems defined
       - no MVPs
 
-  - id: one-lovefire
-    name: ONE LoveFire
-    role: source-lineage
-    repo: github.com/noahnemo-rgb/ONE-LoveFire
-    maturity: drafting
-    description: Lineage and bridge. Source-philosophy house. Not HASEOS governance. Not enrollment.
-    known_gaps:
-      - numbered pages are stubs
-      - ONE-Church repo not created
-
 structural_gaps:
   - id: shared-templates
     severity: minor
@@ -598,7 +594,7 @@ const MULTIVERSE_DATA = {
   },
   universes: [
     { id: 'one-universe', name: 'ONE Universe', role: 'reference-implementation',
-      repo: 'github.com/noahnemo-rgb/ONE-', maturity: 'scaffolded',
+      repo: 'github.com/noahnemo-rgb/ONE-Multiverse', maturity: 'scaffolded',
       description: 'The reference implementation. All child universes inherit its structural grammar.',
       known_gaps: [] },
     { id: 'in-fun-net-universe', name: 'In-Fun.net Universe', role: 'child-universe',
@@ -608,11 +604,7 @@ const MULTIVERSE_DATA = {
     { id: 'hyper-dimensional-universe', name: 'Hyper-dimensional Universe', role: 'child-universe',
       repo: 'github.com/noahnemo-rgb/hyper-dimensional-universe', maturity: 'scaffolded',
       description: 'Child universe. Beyond space, beyond time. HASEOS may arise. No required creed. Brand association is not enrollment.',
-      known_gaps: ['governance layer not yet implemented', 'no ecosystems defined', 'no MVPs'] },
-    { id: 'one-lovefire', name: 'ONE LoveFire', role: 'source-lineage',
-      repo: 'github.com/noahnemo-rgb/ONE-LoveFire', maturity: 'drafting',
-      description: 'Lineage and bridge. Source-philosophy house. Not HASEOS governance. Not enrollment.',
-      known_gaps: ['numbered pages are stubs', 'ONE-Church repo not created'] }
+      known_gaps: ['governance layer not yet implemented', 'no ecosystems defined', 'no MVPs'] }
   ],
   structural_gaps: [
     { id: 'haseos-restructure', severity: 'critical', description: 'haseos-spiral-swarm needs governance/ directory restructured per SCAFFOLD.md', layer: 'governance' },
@@ -1097,7 +1089,44 @@ function populateManifestPickers() {
 }
 
 $('#universePicker').addEventListener('change', e=>loadManifest(e.target.value));
-document.querySelector('.upload-label').addEventListener('click', ()=>$('#universeUploadInput').click());
+document.querySelector('.upload-label')?.addEventListener('click', ()=>$('#universeUploadInput').click());
+$('#addElementForm')?.addEventListener('submit', e=>{
+  e.preventDefault();
+  if (!CURRENT_MANIFEST) { alert('Load a universe first.'); return; }
+  const name = ($('#addName')?.value||'').trim();
+  let repo = ($('#addRepo')?.value||'').trim().replace(/^https?:\/\//,'').replace(/\.git$/,'');
+  const role = $('#addRole')?.value || 'ecosystem';
+  const parent = $('#addParent')?.value || undefined;
+  const unlabeled = !!$('#addUnlabeled')?.checked;
+  if (!name || !repo) return;
+  if (!repo.includes('/')) { alert('Repo needs owner/name'); return; }
+  if (!repo.startsWith('github.com/')) repo = 'github.com/' + repo.replace(/^github\.com\//,'');
+  let id = slugId(name);
+  const ids = new Set(CURRENT_MANIFEST.repos.map(r=>r.id));
+  if (ids.has(id)) id = id + '-' + Date.now().toString(36).slice(-4);
+  const row = {
+    id, name, role, repo, maturity: 'placeholder',
+    tags: unlabeled ? [role, 'unlabeled'] : [role],
+    owner: repo.split('/')[1] || 'noahnemo-rgb',
+    description: unlabeled
+      ? `${name}. Mapped here. Wears no ONE mark and no HASEOS label. Appearance is not enrollment.`
+      : `${name}.`,
+    known_gaps: ['just-added — punch-list not scanned yet'],
+  };
+  if (parent) row.parent = parent;
+  if (unlabeled) {
+    row.unlabeled = true;
+    row.wears_one_mark = false;
+    row.wears_haseos_label = false;
+  }
+  CURRENT_MANIFEST.repos.push(row);
+  CURRENT_MANIFEST.raw = serializeManifest(CURRENT_MANIFEST);
+  renderUniverse(CURRENT_MANIFEST);
+  $('#addName').value='';
+  $('#addRepo').value='';
+  showRepoDetail(row);
+});
+
 $('#universeUploadInput').addEventListener('change', async e=>{
   const file=e.target.files[0]; if(!file) return;
   const text=await file.text();
@@ -1130,10 +1159,41 @@ async function loadManifest(id) {
   }
 }
 
+function slugId(name) {
+  return String(name||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-|-$/g,'')
+    .slice(0,48) || ('el-'+Date.now().toString(36));
+}
+
+function serializeManifest(m) {
+  const repos = (m.repos||[]).map(r => {
+    const out = { ...r };
+    delete out.children_ids;
+    delete out.radius;
+    delete out.color;
+    delete out.x; delete out.y; delete out.vx; delete out.vy;
+    delete out.fx; delete out.fy; delete out.index;
+    return out;
+  });
+  return jsyaml.dump({ universe: m.universe, repos }, { lineWidth: 88, noRefs: true });
+}
+
+function fillAddParentOptions(m) {
+  const sel = $('#addParent');
+  if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">(no parent)</option>' +
+    (m.repos||[]).map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+  if (keep && [...sel.options].some(o=>o.value===keep)) sel.value = keep;
+}
+
 function renderUniverse(m) {
   $('#universeLoading').hidden=true;
   $('#universeResult').hidden=false;
   $('#universeStats').hidden=false;
+  fillAddParentOptions(m);
   // Inject multiverse breadcrumb link above stats
   const statsEl = $('#universeStats');
   let mvCrumb = $('#universeMvCrumb');
@@ -1167,10 +1227,11 @@ function filterRepoIndex(q) {
 function renderRepoIndex(m) {
   const tbody=$('#repoIndexBody'); tbody.innerHTML='';
   for (const r of m.repos) {
+    const unlabeled = r.unlabeled === true || r.wears_one_mark === false;
     const tr=document.createElement('tr');
-    tr.dataset.search=`${r.id} ${r.name} ${r.role} ${r.maturity} ${(r.tags||[]).join(' ')}`.toLowerCase();
+    tr.dataset.search=`${r.id} ${r.name} ${r.role} ${r.maturity} ${(r.tags||[]).join(' ')} unlabeled`.toLowerCase();
     tr.innerHTML=`
-      <td class="repo-cell"><span class="repo-name-display">${esc(r.name)}</span><span class="repo-id">${esc(r.id)}</span></td>
+      <td class="repo-cell"><span class="repo-name-display">${esc(r.name)}</span><span class="repo-id">${esc(r.id)}${unlabeled?' · unlabeled':''}</span></td>
       <td><span class="badge muted">${esc(r.role)}</span></td>
       <td><span class="maturity-pill ${esc(r.maturity)}">${esc(MATURITY[r.maturity]?.label||r.maturity)}</span></td>
       <td>${r.parent?`<code>${esc(r.parent)}</code>`:'<span class="muted">—</span>'}</td>
@@ -1266,7 +1327,13 @@ function renderUniverseMap(m) {
 function showRepoDetail(r) {
   const side=$('#repoSide'); side.hidden=false;
   $('#rsName').textContent=r.name;
-  $('#rsRole').textContent=`${r.role}${r.parent?' · child of '+r.parent:''}`;
+  const unlabeled = r.unlabeled === true || r.wears_one_mark === false;
+  const roleBits = [r.role];
+  if (r.parent) roleBits.push('child of ' + r.parent);
+  if (!unlabeled && r.governed_by) roleBits.push('governed_by ' + r.governed_by);
+  $('#rsRole').textContent=roleBits.join(' · ');
+  const uChip=$('#rsUnlabeled');
+  if (uChip) uChip.hidden = !unlabeled;
   const pill=$('#rsMaturity'); pill.textContent=MATURITY[r.maturity]?.label||r.maturity;
   pill.className=`maturity-pill ${r.maturity}`;
   $('#rsDesc').textContent=(r.description||'').trim()||'—';
