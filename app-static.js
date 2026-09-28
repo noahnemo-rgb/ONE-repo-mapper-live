@@ -92,9 +92,9 @@ function renderAuthWidget() {
     bar.querySelector('#signOutBtn')?.addEventListener('click', () => { clearAuth(); renderAuthWidget(); });
   } else if (isOAuthConfigured()) {
     bar.innerHTML = `
-      <span class="auth-hint">60 req/hr · </span>
+      <span class="auth-hint">60 req/hr</span>
       <button class="auth-btn auth-btn--in" id="signInBtn">Sign in with GitHub</button>
-      <span class="auth-hint"> for 5,000 req/hr</span>`;
+      <span class="auth-hint">5,000 signed in</span>`;
     bar.querySelector('#signInBtn')?.addEventListener('click', initiateGitHubOAuth);
   } else {
     bar.innerHTML = `<span class="auth-hint muted">Rate limit: 60 req/hr (unauthenticated)</span>`;
@@ -319,8 +319,9 @@ const MATURITY = {
   'production':   { color: '#86efac', order: 5, label: 'Production' },
 };
 const ROLE_SIZE = {
-  'master': 28, 'governance': 22, 'governance-subsystem': 14,
-  'container': 22, 'ecosystem': 18, 'product': 14, 'codex': 12,
+  'master': 28, 'house': 30, 'universe': 24, 'governance': 22, 'governance-subsystem': 14,
+  'container': 22, 'ecology': 20, 'ecosystem': 18, 'product': 14, 'codex': 12,
+  'work-unit': 11, 'source-lineage': 16,
 };
 
 // ============================================================
@@ -764,10 +765,14 @@ function parseHouseMap(raw) {
 
 function houseRoot() {
   const t = HOUSE_TREE || parseHouseMap(HOUSE_MAP_RAW);
+  const h = t.house || {};
   return {
-    id: (t.house && t.house.id) || 'one-multiverse',
-    name: (t.house && t.house.name) || 'ONE Multiverse',
+    id: h.id || 'one-multiverse',
+    name: h.name || 'ONE Multiverse',
     role: 'house',
+    repo: h.repo || '',
+    maturity: 'scaffolded',
+    description: h.tagline || '',
     children: t.children || [],
   };
 }
@@ -958,6 +963,39 @@ function getManifestRaw(id) {
   }
   if (SESSION_MANIFESTS.has(id)) return SESSION_MANIFESTS.get(id);
   return UPLOADED_MANIFESTS.get(id)?.raw || null;
+}
+
+// Scaffold + Gap Dashboard used to demand universe:/repos: YAML.
+// The lamp's source of truth is the house tree. This adapts either shape.
+function resolveManifest(id) {
+  const root = houseRoot();
+  const node = (!id || id === 'one-multiverse') ? root : findTreeNode(root, id);
+  if (node) {
+    return {
+      id: id || 'one-multiverse',
+      universe: { name: node.name, tagline: node.description || '' },
+      repos: flattenTree(node),
+      raw: serializeHouseMap(),
+    };
+  }
+  const raw = getManifestRaw(id);
+  if (!raw) throw new Error('Manifest not found: ' + id);
+  const doc = jsyaml.load(raw);
+  if (doc && doc.house) {
+    const parsed = parseHouseMap(raw);
+    const sub = houseRoot();
+    return {
+      id: 'one-multiverse',
+      universe: { name: sub.name, tagline: sub.description || '' },
+      repos: flattenTree(sub),
+      raw,
+    };
+  }
+  if (!doc || !doc.universe || !Array.isArray(doc.repos)) {
+    throw new Error('Manifest needs a house: tree or a universe: / repos: list');
+  }
+  const structured = structureManifest(doc);
+  return { id, universe: structured.universe, repos: structured.repos, raw };
 }
 
 function findTreeNode(node, id) {
@@ -1192,7 +1230,7 @@ function renderRepo(d) {
   $('#repoDesc').textContent = d.repo.description || 'No description provided.';
   $('#badgeLang').textContent = d.repo.language || 'mixed';
   $('#badgeStars').textContent = `★ ${fmt(d.repo.stars)}`;
-  $('#badgeForks').textContent = `⑂ ${fmt(d.repo.forks)}`;
+  $('#badgeForks').textContent = `${fmt(d.repo.forks)} forks`;
   $('#badgeFiles').textContent = `${d.stats.totalFiles} files`;
   if (d.repo.license) { $('#badgeLicense').hidden = false; $('#badgeLicense').textContent = d.repo.license; }
   const gh = $('#ghLink'); gh.hidden = false; gh.href = d.repo.htmlUrl;
@@ -1460,7 +1498,6 @@ function makeAddedRow({ id, name, role, parent, repo, unlabeled }) {
 }
 
 $('#universePicker').addEventListener('change', e=>loadManifest(e.target.value));
-document.querySelector('.upload-label')?.addEventListener('click', ()=>$('#universeUploadInput').click());
 $('#addElementForm')?.addEventListener('submit', e=>{
   e.preventDefault();
   const path = ($('#addPath')?.value||'').trim();
@@ -1472,16 +1509,27 @@ $('#addElementForm')?.addEventListener('submit', e=>{
   if (repo && !repo.startsWith('github.com/')) repo = 'github.com/' + repo.replace(/^github\.com\//,'');
 
   if (!HOUSE_TREE) HOUSE_TREE = parseHouseMap(HOUSE_MAP_RAW);
+  if (!Array.isArray(HOUSE_TREE.children)) HOUSE_TREE.children = [];
 
   const tokens = path
     ? path.split('/').map(s=>s.trim()).filter(Boolean).filter(t => !HOUSE_KEYS.has(normKey(t)))
     : (name ? [name] : []);
-  if (!tokens.length) { alert('Paste a path from ONE-Multiverse downward.'); return; }
+  if (!tokens.length) { alert('Paste a path from ONE-Multiverse downward, or a name.'); return; }
 
   let cursor = houseRoot();
   // houseRoot is a view; attach created children onto HOUSE_TREE.children
   let parentList = HOUSE_TREE.children;
   let parentRole = 'house';
+  const parentOverride = ($('#addParent')?.value || '').trim();
+  // Parent dropdown applies when there is no path — a name poured under a chosen glass.
+  if (!path && parentOverride) {
+    const pNode = findTreeNode(houseRoot(), parentOverride);
+    if (pNode) {
+      parentList = pNode.children || (pNode.children = []);
+      parentRole = pNode.role || parentRole;
+      cursor = pNode;
+    }
+  }
   let leaf = null;
   const created = [];
 
@@ -1494,8 +1542,9 @@ $('#addElementForm')?.addEventListener('submit', e=>{
       parentList = child.children || (child.children = []);
       parentRole = child.role || parentRole;
       if (last) {
-        leaf = child;
         alert(child.name + ' is already on the tree.');
+        showRepoDetail(child);
+        return;
       }
       continue;
     }
@@ -1541,7 +1590,16 @@ $('#universeUploadInput').addEventListener('change', async e=>{
   const file=e.target.files[0]; if(!file) return;
   const text=await file.text();
   try {
-    parseManifest(text); // validate
+    const doc = jsyaml.load(text);
+    if (doc && doc.house) {
+      HOUSE_MAP_RAW = text;
+      HOUSE_TREE = parseHouseMap(text);
+      populateManifestPickers();
+      if ($('#universePicker')) $('#universePicker').value = 'one-multiverse';
+      loadManifest('one-multiverse');
+      return;
+    }
+    parseManifest(text);
     const id=`m-${Date.now().toString(36)}`;
     const name=file.name.replace(/\.ya?ml$/i,'');
     UPLOADED_MANIFESTS.set(id,{raw:text,name});
@@ -1549,6 +1607,7 @@ $('#universeUploadInput').addEventListener('change', async e=>{
     $('#universePicker').value=id;
     loadManifest(id);
   } catch(err) { alert('Upload failed: '+err.message); }
+  finally { e.target.value = ''; }
 });
 
 async function loadManifest(id) {
@@ -1623,10 +1682,11 @@ function renderUniverse(m) {
     mvCrumb.style.marginBottom = '12px';
     statsEl.parentNode.insertBefore(mvCrumb, statsEl);
   }
-  mvCrumb.innerHTML = `<span class="crumb" onclick="setMode('multiverse')" style="cursor:pointer;text-decoration:underline">ONE Multiverse</span><span class="crumb-sep">&rarr;</span><span class="crumb crumb--active">${esc(m.universe?.name||'ONE Universe')}</span>`;
+  mvCrumb.innerHTML = `<button type="button" class="crumb-link" id="crumbToMv">ONE Multiverse</button><span class="crumb-sep">&rarr;</span><span class="crumb crumb--active">${esc(m.universe?.name||'ONE Universe')}</span>`;
+  $('#crumbToMv')?.addEventListener('click', () => setMode('multiverse'));
   $('#statRepos').textContent=m.repos.length;
   $('#statEcosystems').textContent=m.repos.filter(r=>r.role==='ecosystem').length;
-  const avg=m.repos.reduce((s,r)=>s+(MATURITY[r.maturity]?.order??0),0)/m.repos.length;
+  const avg=m.repos.length ? m.repos.reduce((s,r)=>s+(MATURITY[r.maturity]?.order??0),0)/m.repos.length : 0;
   $('#statMaturity').textContent=avg.toFixed(1);
   renderUniverseMap(m);
   renderRepoIndex(m);
@@ -1724,73 +1784,102 @@ Do not copy these rows into ONE-Multiverse, Urban Mines, Oceanus, or HASEOS repo
 
 function renderUniverseMap(m) {
   const svg=d3.select('#universeMap'); svg.selectAll('*').remove();
-  const wrap=svg.node().getBoundingClientRect();
-  const width=wrap.width||800, height=640;
-  svg.attr('viewBox',`0 0 ${width} ${height}`);
   const nodes=m.repos.map(r=>({...r,radius:ROLE_SIZE[r.role]||12,color:MATURITY[r.maturity]?.color||'#7a82a8'}));
   const byId=new Map(nodes.map(n=>[n.id,n]));
   const links=[];
-  for (const r of m.repos) {
+  for (const r of nodes) {
     if (r.parent&&byId.has(r.parent)) links.push({source:r.parent,target:r.id,kind:'parent'});
   }
-  for (const r of m.repos) {
-    if (r.role==='governance'&&Array.isArray(r.references)) {
-      for (const ref of r.references) {
-        const id=ref.split('/').pop();
-        if (byId.has(id)&&id!==r.id&&!links.find(l=>l.source===r.id&&l.target===id))
-          links.push({source:r.id,target:id,kind:'reference'});
-      }
-    }
+  const kids=new Map(nodes.map(n=>[n.id,[]]));
+  const hasParent=new Set();
+  for (const l of links) {
+    const child=byId.get(l.target);
+    if (child && kids.has(l.source)) { kids.get(l.source).push(child); hasParent.add(l.target); }
   }
+  for (const arr of kids.values()) arr.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const roots=nodes.filter(n=>!hasParent.has(n.id));
+  if (!roots.length && nodes.length) roots.push(nodes[0]);
+
+  const COL=196, ROW=112;
+  function weight(n){
+    const c=kids.get(n.id)||[];
+    n._w=c.length?c.reduce((sum,k)=>sum+weight(k),0):1;
+    return n._w;
+  }
+  roots.forEach(weight);
+  let maxDepth=0;
+  function place(n, depth, x0){
+    maxDepth=Math.max(maxDepth, depth);
+    const c=kids.get(n.id)||[];
+    if (!c.length){
+      n.x=x0+COL/2; n.y=52+depth*ROW;
+      return COL;
+    }
+    let cursor=x0;
+    for (const k of c) cursor+=place(k, depth+1, cursor);
+    n.x=(c[0].x+c[c.length-1].x)/2;
+    n.y=52+depth*ROW;
+    return Math.max(COL, cursor-x0);
+  }
+  let edge=20;
+  for (const r of roots) edge+=place(r, 0, edge);
+  const width=Math.max(720, edge+24);
+  const height=Math.max(340, 52+(maxDepth+1)*ROW+28);
+  svg.attr('viewBox',`0 0 ${width} ${height}`).attr('preserveAspectRatio','xMinYMin meet');
+  svg.attr('width', width).attr('height', height);
+  svg.style('width', width+'px').style('height', height+'px');
+  const scroller = svg.node().parentElement;
+  const focus = nodes.find(n => n.role === 'house') || nodes[0];
+  if (scroller && focus) {
+    requestAnimationFrame(() => {
+      scroller.scrollLeft = Math.max(0, focus.x - scroller.clientWidth / 2);
+      scroller.scrollTop = 0;
+    });
+  }
+
   const legend=$('#mapLegend');
   legend.innerHTML=Object.entries(MATURITY).sort((a,b)=>a[1].order-b[1].order)
     .map(([k,v])=>`<span class="leg"><span class="dot" style="background:${v.color}"></span>${v.label}</span>`).join('');
-  const g=svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3,3]).on('zoom',ev=>g.attr('transform',ev.transform)));
+
   const defs=svg.append('defs');
   const glow=defs.append('filter').attr('id','glow').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
   glow.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');
   const merge=glow.append('feMerge');
   merge.append('feMergeNode').attr('in','blur');
   merge.append('feMergeNode').attr('in','SourceGraphic');
-  for (const n of nodes) {
-    if (n.role==='master') { n.fx=width/2; n.fy=height/2; }
-    else {
-      const i=nodes.indexOf(n), angle=(i/nodes.length)*Math.PI*2;
-      n.x=width/2+Math.cos(angle)*180; n.y=height/2+Math.sin(angle)*180;
-    }
-  }
-  const sim=d3.forceSimulation(nodes)
-    .force('link',d3.forceLink(links).id(d=>d.id).distance(l=>l.kind==='reference'?130:80).strength(l=>l.kind==='reference'?0.12:0.55))
-    .force('charge',d3.forceManyBody().strength(-260))
-    .force('center',d3.forceCenter(width/2,height/2).strength(0.06))
-    .force('x',d3.forceX(width/2).strength(0.05))
-    .force('y',d3.forceY(height/2).strength(0.05))
-    .force('collide',d3.forceCollide().radius(d=>d.radius+14));
-  const link=g.append('g').selectAll('line').data(links).join('line')
-    .attr('stroke',d=>d.kind==='reference'?'#9b6bff':'#443a8c')
-    .attr('stroke-width',d=>d.kind==='reference'?1:1.8)
-    .attr('stroke-opacity',d=>d.kind==='reference'?0.45:0.75)
-    .attr('stroke-dasharray',d=>d.kind==='reference'?'4,4':null);
+
+  const g=svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.35,2.8]).on('zoom',ev=>g.attr('transform',ev.transform)));
+  g.append('g').selectAll('path').data(links).join('path')
+    .attr('fill','none')
+    .attr('stroke','#443a8c')
+    .attr('stroke-width',1.6)
+    .attr('stroke-opacity',0.85)
+    .attr('d',d=>{
+      const a=byId.get(d.source), b=byId.get(d.target);
+      if(!a||!b) return '';
+      const mid=(a.y+b.y)/2;
+      return `M${a.x},${a.y+ (a.radius||12)} C${a.x},${mid} ${b.x},${mid} ${b.x},${b.y-(b.radius||12)}`;
+    });
   const nodeGroup=g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('transform',d=>`translate(${d.x},${d.y})`)
     .style('cursor','pointer')
-    .call(drag(sim))
     .on('click',(ev,d)=>{ ev.stopPropagation(); showRepoDetail(d); });
-  nodeGroup.append('circle').attr('r',d=>d.radius+4).attr('fill','none').attr('stroke',d=>d.color).attr('stroke-opacity',0.3).attr('stroke-width',1);
-  nodeGroup.append('circle').attr('r',d=>d.radius).attr('fill',d=>d.color).attr('stroke','#0a0820').attr('stroke-width',2).attr('filter',d=>d.role==='master'?'url(#glow)':null);
-  nodeGroup.append('text').text(d=>d.name).attr('text-anchor','middle').attr('dy',d=>d.radius+18)
-    .attr('font-family','Cormorant Garamond, serif')
-    .attr('font-size',d=>d.role==='master'?18:d.role==='governance'||d.role==='container'?15:13)
-    .attr('font-weight',d=>d.role==='master'?600:500).attr('fill','#f5efe6').attr('pointer-events','none');
-  nodeGroup.append('title').text(d=>`${d.name}\n${d.role} · ${d.maturity}\n${d.description||''}`);
-  sim.on('tick',()=>{
-    const pad=40;
-    for (const n of nodes) {
-      if (n.fx==null) { n.x=Math.max(pad,Math.min(width-pad,n.x)); n.y=Math.max(pad,Math.min(height-pad,n.y)); }
-    }
-    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-    nodeGroup.attr('transform',d=>`translate(${d.x},${d.y})`);
-  });
+  nodeGroup.append('circle').attr('r',d=>d.radius+5).attr('fill','none')
+    .attr('stroke',d=>d.unlabeled?'#7ce8d4':d.color).attr('stroke-opacity',0.45)
+    .attr('stroke-width',d=>(d.role==='house'||d.role==='master')?2:1)
+    .attr('stroke-dasharray',d=>d.unlabeled?'3 2':null);
+  nodeGroup.append('circle').attr('r',d=>d.radius).attr('fill',d=>d.color)
+    .attr('stroke','#0a0820').attr('stroke-width',2)
+    .attr('filter',d=>(d.role==='house'||d.role==='master')?'url(#glow)':null);
+  nodeGroup.append('text')
+    .text(d=>{ const name=d.name||d.id||''; return name.length>28?name.slice(0,26)+'…':name; })
+    .attr('text-anchor','middle').attr('dy',d=>d.radius+16)
+    .attr('font-family','Cormorant Garamond, serif').attr('font-size',14).attr('font-weight',500)
+    .attr('fill','#f5efe6')
+    .attr('stroke','#0a0820').attr('stroke-width',4).attr('paint-order','stroke')
+    .attr('pointer-events','none');
+  nodeGroup.append('title').text(d=>`${d.name}\n${d.role||''} · ${d.maturity||''}\n${(d.description||'').trim()}`);
 }
 
 function showRepoDetail(r) {
@@ -1886,11 +1975,9 @@ $('#scaffoldPreviewBtn').addEventListener('click', async ()=>{
   const btn=$('#scaffoldPreviewBtn'); btn.disabled=true; btn.textContent='Generating…';
   $('#scaffoldStatus').textContent='';
   try {
-    const raw=getManifestRaw(id); if(!raw) throw new Error('Manifest not found');
-    const doc=parseManifest(raw);
-    const structured=structureManifest(doc);
-    const universe=doc.universe;
-    const reposOut=structured.repos.map(repo=>{
+    const resolved=resolveManifest(id);
+    const universe=resolved.universe;
+    const reposOut=resolved.repos.map(repo=>{
       const files=filesForRepo(repo,universe);
       return {id:repo.id,name:repo.name,role:repo.role,maturity:repo.maturity,fileCount:files.length,tree:buildTreeFromFiles(files)};
     });
@@ -1908,16 +1995,14 @@ $('#scaffoldDownloadBtn').addEventListener('click', async ()=>{
   const id=$('#scaffoldPicker').value;
   const btn=$('#scaffoldDownloadBtn'); btn.disabled=true; btn.textContent='Building zip…';
   try {
-    const raw=getManifestRaw(id); if(!raw) throw new Error('Manifest not found');
-    const doc=parseManifest(raw);
-    const structured=structureManifest(doc);
+    const resolved=resolveManifest(id);
     const zip=new JSZip();
     let fileCount=0;
-    for (const repo of structured.repos) {
-      const files=filesForRepo(repo,doc.universe);
+    for (const repo of resolved.repos) {
+      const files=filesForRepo(repo,resolved.universe);
       for (const f of files) { zip.file(`${repo.id}/${f.path}`,f.content); fileCount++; }
     }
-    zip.file('universe.yaml',raw);
+    zip.file('MAP.yaml',resolved.raw);
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -2020,10 +2105,8 @@ $('#gapsScanBtn').addEventListener('click', async ()=>{
   const btn=$('#gapsScanBtn'); btn.disabled=true; btn.textContent='Scanning GitHub…';
   $('#gapsStatus').textContent='Hitting GitHub API…';
   try {
-    const raw=getManifestRaw(id); if(!raw) throw new Error('Manifest not found');
-    const doc=parseManifest(raw);
-    const structured=structureManifest(doc);
-    const tasks=structured.repos.map(r=>async()=>{
+    const resolved=resolveManifest(id);
+    const tasks=resolved.repos.map(r=>async()=>{
       const owner=r.owner||(r.repo?.includes('/')?r.repo.split('/').slice(-2,-1)[0]:'noahnemo-rgb');
       const repoName=r.repo?.split('/').pop()||r.id;
       const result=await scanRepo(owner,repoName);
@@ -2034,7 +2117,7 @@ $('#gapsScanBtn').addEventListener('click', async ()=>{
     async function worker() { while(cursor<tasks.length){const i=cursor++;out[i]=await tasks[i]();} }
     await Promise.all(Array.from({length:Math.min(4,tasks.length)},worker));
     const flaggedCount=out.filter(r=>r.flagged).length;
-    CURRENT_GAPS={scannedAt:new Date().toISOString(),universe:doc.universe?.name,totalRepos:out.length,flaggedCount,quietCount:out.length-flaggedCount,repos:out};
+    CURRENT_GAPS={scannedAt:new Date().toISOString(),universe:resolved.universe?.name,totalRepos:out.length,flaggedCount,quietCount:out.length-flaggedCount,repos:out};
     history.replaceState(null,'',`#gaps/${id}`);
     renderGaps(CURRENT_GAPS);
     $('#gapsStatus').textContent=`Scanned ${out.length} repos at ${new Date(CURRENT_GAPS.scannedAt).toLocaleString()}`;
@@ -2082,15 +2165,16 @@ function renderMultiverseMap(data) {
   if (svg.empty() || !svg.node()) return;
   svg.selectAll('*').remove();
   const wrap = svg.node().getBoundingClientRect();
-  const width = wrap.width || 800, height = 420;
+  const width = Math.max(wrap.width || 800, 320), height = 420;
   svg.attr('viewBox', '0 0 ' + width + ' ' + height);
-  const size = { master: 30, 'reference-implementation': 26, 'source-lineage': 20, 'child-universe': 18 };
+  const size = { master: 32, 'reference-implementation': 22, 'source-lineage': 18, 'child-universe': 18, universe: 20 };
   const hub = {
     id: 'one-multiverse',
     name: (data.multiverse && data.multiverse.name) || 'ONE Multiverse',
     role: 'master',
     maturity: 'scaffolded',
-    description: 'The house. Child universes hang here.'
+    description: 'The house. Child universes hang here.',
+    repo: 'github.com/noahnemo-rgb/ONE-Multiverse'
   };
   const rooms = (data.universes || []).map(function (u) { return Object.assign({}, u); });
   const nodes = [hub].concat(rooms).map(function (r) {
@@ -2099,50 +2183,45 @@ function renderMultiverseMap(data) {
       color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8'
     });
   });
-  const links = rooms.map(function (u) {
-    return { source: 'one-multiverse', target: u.id, kind: 'parent' };
+  const cx = width / 2, cy = height / 2 + 6;
+  const orbit = Math.min(width * 0.34, 210);
+  const hubNode = nodes[0];
+  hubNode.x = cx; hubNode.y = cy;
+  rooms.forEach(function (u, i) {
+    const n = nodes[i + 1];
+    const angle = (-Math.PI / 2) + (i / Math.max(rooms.length, 1)) * Math.PI * 2;
+    n.x = cx + Math.cos(angle) * orbit;
+    n.y = cy + Math.sin(angle) * orbit * 0.78;
   });
   const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', function (ev) {
+  svg.call(d3.zoom().scaleExtent([0.5, 2.5]).on('zoom', function (ev) {
     g.attr('transform', ev.transform);
   }));
-  const hubNode = nodes.find(function (x) { return x.id === 'one-multiverse'; });
-  hubNode.fx = width / 2; hubNode.fy = height / 2;
-  rooms.forEach(function (u, i) {
-    const n = nodes.find(function (x) { return x.id === u.id; });
-    const angle = (i / Math.max(rooms.length, 1)) * Math.PI * 2 - Math.PI / 2;
-    n.x = width / 2 + Math.cos(angle) * 150;
-    n.y = height / 2 + Math.sin(angle) * 120;
-  });
-  const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(140).strength(0.5))
-    .force('charge', d3.forceManyBody().strength(-280))
-    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.08))
-    .force('collide', d3.forceCollide().radius(function (d) { return d.radius + 18; }));
-  const link = g.append('g').selectAll('line').data(links).join('line')
-    .attr('stroke', '#443a8c').attr('stroke-width', 1.8).attr('stroke-opacity', 0.75);
+  const link = g.append('g').selectAll('line').data(rooms).join('line')
+    .attr('x1', cx).attr('y1', cy)
+    .attr('x2', function (d, i) { return nodes[i + 1].x; })
+    .attr('y2', function (d, i) { return nodes[i + 1].y; })
+    .attr('stroke', '#443a8c').attr('stroke-width', 1.8).attr('stroke-opacity', 0.8);
   const nodeGroup = g.append('g').selectAll('g').data(nodes).join('g')
-    .style('cursor', function (d) { return d.repo ? 'pointer' : 'default'; })
-    .call(drag(sim))
+    .attr('transform', function (d) { return 'translate(' + d.x + ',' + d.y + ')'; })
+    .style('cursor', 'pointer')
     .on('click', function (ev, d) {
       ev.stopPropagation();
-      if (d.repo) window.open('https://' + d.repo, '_blank', 'noopener');
+      if (d.id === 'one-universe' || d.role === 'reference-implementation') setMode('universe');
+      else if (d.repo) window.open('https://' + String(d.repo).replace(/^https?:\/\//,''), '_blank', 'noopener');
     });
-  nodeGroup.append('circle').attr('r', function (d) { return d.radius + 4; })
-    .attr('fill', 'none').attr('stroke', function (d) { return d.color; })
-    .attr('stroke-opacity', 0.3).attr('stroke-width', 1);
+  nodeGroup.append('circle').attr('r', function (d) { return d.radius + 6; })
+    .attr('fill', 'none')
+    .attr('stroke', function (d) { return d.role === 'master' ? '#ffd27a' : d.color; })
+    .attr('stroke-opacity', 0.7).attr('stroke-width', function (d) { return d.role === 'master' ? 2 : 1; });
   nodeGroup.append('circle').attr('r', function (d) { return d.radius; })
     .attr('fill', function (d) { return d.color; })
     .attr('stroke', '#0a0820').attr('stroke-width', 2);
   nodeGroup.append('text').text(function (d) { return d.name; })
-    .attr('text-anchor', 'middle').attr('dy', function (d) { return d.radius + 16; })
+    .attr('text-anchor', 'middle').attr('dy', function (d) { return d.radius + 18; })
     .attr('font-family', 'Cormorant Garamond, serif')
     .attr('font-size', function (d) { return d.role === 'master' ? 16 : 13; })
     .attr('font-weight', function (d) { return d.role === 'master' ? 600 : 500; })
     .attr('fill', '#f5efe6').attr('pointer-events', 'none');
-  sim.on('tick', function () {
-    link.attr('x1', function (d) { return d.source.x; }).attr('y1', function (d) { return d.source.y; })
-        .attr('x2', function (d) { return d.target.x; }).attr('y2', function (d) { return d.target.y; });
-    nodeGroup.attr('transform', function (d) { return 'translate(' + d.x + ',' + d.y + ')'; });
-  });
+  nodeGroup.append('title').text(function (d) { return d.name + (d.description ? '\n' + d.description : ''); });
 }

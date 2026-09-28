@@ -56,7 +56,7 @@
     <h1>Map any repo. Map your entire universe.</h1>
     <p class="lede">Drop a single GitHub URL to explore any public repo — or switch modes to render your entire ONE Universe constellation.</p>
     <form id="repoForm" class="repo-form" autocomplete="off">
-      <input id="repoUrl" type="text" placeholder="https://github.com/owner/repo  ·  or  owner/repo" required spellcheck="false" />
+      <input id="repoUrl" type="text" placeholder="github.com/owner/repo" required spellcheck="false" />
       <button type="submit" id="analyzeBtn">Analyze</button>
     </form>
     <div id="errorBox" class="error-box" hidden></div>
@@ -161,27 +161,42 @@
     </label>
   </div>
   <form id="addElementForm" class="add-element" autocomplete="off">
-    <input id="addPath" class="add-path" type="text" placeholder="ONE-Multiverse/ONE-Universe/ONE-Ecology/ONE-Urban-Mines/Operations Manual" spellcheck="false" />
-    <input id="addName" type="text" placeholder="Name (if no path)" spellcheck="false" />
-    <input id="addRepo" type="text" placeholder="github.com/owner/repo (optional)" spellcheck="false" />
-    <select id="addRole" aria-label="Role">
-      <option value="auto">role: auto from path</option>
-      <option value="ecology">ecology</option>
-      <option value="ecosystem">ecosystem</option>
-      <option value="work-unit">work-unit</option>
-      <option value="product">product</option>
-      <option value="container">container</option>
-      <option value="codex">codex</option>
-      <option value="source-lineage">source-lineage</option>
-    </select>
-    <select id="addParent" aria-label="Parent override"></select>
+    <label class="field field-grow">
+      <span>Path from the house</span>
+      <input id="addPath" class="add-path" type="text" placeholder="ONE-Universe/ONE-Ecology/ONE-Urban-Mines/Operations Manual" spellcheck="false" />
+    </label>
+    <label class="field">
+      <span>Name</span>
+      <input id="addName" type="text" placeholder="If no path" spellcheck="false" />
+    </label>
+    <label class="field">
+      <span>Repo</span>
+      <input id="addRepo" type="text" placeholder="github.com/owner/repo" spellcheck="false" />
+    </label>
+    <label class="field">
+      <span>Role</span>
+      <select id="addRole" aria-label="Role">
+        <option value="auto">auto from path</option>
+        <option value="ecology">ecology</option>
+        <option value="ecosystem">ecosystem</option>
+        <option value="work-unit">work-unit</option>
+        <option value="product">product</option>
+        <option value="container">container</option>
+        <option value="codex">codex</option>
+        <option value="source-lineage">source-lineage</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Parent if no path</span>
+      <select id="addParent" aria-label="Parent override"></select>
+    </label>
     <label class="checkbox-label add-unlabeled">
       <input type="checkbox" id="addUnlabeled" />
-      Unlabeled (no ONE mark, no HASEOS label)
+      Unlabeled — no ONE mark, no HASEOS label
     </label>
     <button type="submit" class="btn-primary">Add to map</button>
   </form>
-  <p class="muted small add-hint">Pour at the top glass. Path last segment is the new leaf. Download <strong>MAP.yaml</strong> and commit it in <strong>ONE-Multiverse</strong>. The lamp only draws. It does not write Urban Mines, Oceanus, or any product repo.</p>
+  <p class="muted small add-hint">Pour at the top glass. The last path segment is the new leaf. A name with no path uses the parent menu. Download <strong>MAP.yaml</strong> and commit it in <strong>ONE-Multiverse</strong>. The lamp only draws. It does not write Urban Mines, Oceanus, or any product repo.</p>
   <div id="universeLoading" class="loading-bar" hidden>Loading manifest…</div>
   <div id="universeResult" hidden>
     <div id="universeStats" class="stats-row" hidden>
@@ -196,9 +211,12 @@
     </div>
     <div class="panel" data-upanel="map">
       <div id="mapLegend" class="map-legend"></div>
-      <svg id="universeMap" class="universe-map"></svg>
-      <div id="repoSide" class="repo-side" hidden>
-        <button id="repoSideClose" class="side-close">✕</button>
+      <div class="map-stage">
+        <div class="map-scroll">
+          <svg id="universeMap" class="universe-map" role="img" aria-label="House tree"></svg>
+        </div>
+        <div id="repoSide" class="repo-side" hidden>
+        <button id="repoSideClose" class="side-close" aria-label="Close">×</button>
         <h3 id="rsName"></h3>
         <div id="rsRole" class="muted small"></div>
         <span id="rsUnlabeled" class="unlabeled-chip" hidden>Unlabeled field · not enrollment</span>
@@ -208,6 +226,7 @@
         <div id="rsGapsWrap" hidden><strong>Known gaps:</strong><ul id="rsGaps"></ul></div>
         <div id="rsContainsWrap" hidden><strong>Contains:</strong><ul id="rsContains"></ul></div>
         <a id="rsLink" href="#" class="btn-secondary" target="_blank" rel="noopener">View on GitHub ↗</a>
+      </div>
       </div>
     </div>
     <div class="panel" data-upanel="index" hidden>
