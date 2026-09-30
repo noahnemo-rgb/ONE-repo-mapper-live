@@ -921,9 +921,11 @@ function renderMultiverseView(data) {
     </div>
 
     <section class="multiverse-map-section">
-      <h3 class="section-label">Constellation</h3>
-      <p class="universe-card-desc">Rooms of the house. Not ONE Universe furniture.</p>
-      <svg id="multiverseMap" class="universe-map"></svg>
+      <h3 class="section-label">House tree</h3>
+      <p class="universe-card-desc" id="houseTreeNote">Every poured tier. Ecology and ecosystems hang under their universe. Oceanus stays unlabeled. Layer 4 is empty until a leaf is poured.</p>
+      <div class="map-scroll">
+        <svg id="multiverseMap" class="universe-map" role="img" aria-label="ONE Multiverse house tree"></svg>
+      </div>
     </section>
 
     <section class="universe-cards-section">
@@ -936,7 +938,7 @@ function renderMultiverseView(data) {
       <div class="structural-gaps-panel">${structuralGapsHtml}</div>
     </section>
   `;
-  renderMultiverseMap(data);
+  renderMultiverseMap();
 }
 
 const SESSION_MANIFESTS = new Map(); // id -> raw yaml after path-add
@@ -2160,68 +2162,133 @@ function renderGapsTable(data) {
   }
 }
 
-function renderMultiverseMap(data) {
+function renderMultiverseMap() {
   const svg = d3.select('#multiverseMap');
   if (svg.empty() || !svg.node()) return;
   svg.selectAll('*').remove();
-  const wrap = svg.node().getBoundingClientRect();
-  const width = Math.max(wrap.width || 800, 320), height = 420;
-  svg.attr('viewBox', '0 0 ' + width + ' ' + height);
-  const size = { master: 32, 'reference-implementation': 22, 'source-lineage': 18, 'child-universe': 18, universe: 20 };
-  const hub = {
-    id: 'one-multiverse',
-    name: (data.multiverse && data.multiverse.name) || 'ONE Multiverse',
-    role: 'master',
-    maturity: 'scaffolded',
-    description: 'The house. Child universes hang here.',
-    repo: 'github.com/noahnemo-rgb/ONE-Multiverse'
-  };
-  const rooms = (data.universes || []).map(function (u) { return Object.assign({}, u); });
-  const nodes = [hub].concat(rooms).map(function (r) {
-    return Object.assign({}, r, {
-      radius: size[r.role] || 16,
-      color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8'
-    });
-  });
-  const cx = width / 2, cy = height / 2 + 6;
-  const orbit = Math.min(width * 0.34, 210);
-  const hubNode = nodes[0];
-  hubNode.x = cx; hubNode.y = cy;
-  rooms.forEach(function (u, i) {
-    const n = nodes[i + 1];
-    const angle = (-Math.PI / 2) + (i / Math.max(rooms.length, 1)) * Math.PI * 2;
-    n.x = cx + Math.cos(angle) * orbit;
-    n.y = cy + Math.sin(angle) * orbit * 0.78;
-  });
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.5, 2.5]).on('zoom', function (ev) {
-    g.attr('transform', ev.transform);
+
+  let repos = [];
+  try { repos = flattenTree(houseRoot()); } catch (e) { repos = []; }
+  const note = document.getElementById('houseTreeNote');
+  if (!repos.length) {
+    if (note) note.textContent = 'House tree did not load. MAP.yaml is the source.';
+    return;
+  }
+  if (note) {
+    const roles = {};
+    for (const r of repos) roles[r.role] = (roles[r.role] || 0) + 1;
+    note.textContent = repos.length + ' nodes. Governance, universes, ecology, ecosystems. Layer 4 stays empty until a leaf is poured. Oceanus is unlabeled.';
+  }
+
+  const nodes = repos.map(r => ({
+    ...r,
+    radius: ROLE_SIZE[r.role] || 12,
+    color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8',
   }));
-  const link = g.append('g').selectAll('line').data(rooms).join('line')
-    .attr('x1', cx).attr('y1', cy)
-    .attr('x2', function (d, i) { return nodes[i + 1].x; })
-    .attr('y2', function (d, i) { return nodes[i + 1].y; })
-    .attr('stroke', '#443a8c').attr('stroke-width', 1.8).attr('stroke-opacity', 0.8);
-  const nodeGroup = g.append('g').selectAll('g').data(nodes).join('g')
-    .attr('transform', function (d) { return 'translate(' + d.x + ',' + d.y + ')'; })
-    .style('cursor', 'pointer')
-    .on('click', function (ev, d) {
-      ev.stopPropagation();
-      if (d.id === 'one-universe' || d.role === 'reference-implementation') setMode('universe');
-      else if (d.repo) window.open('https://' + String(d.repo).replace(/^https?:\/\//,''), '_blank', 'noopener');
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const links = [];
+  for (const r of nodes) {
+    if (r.parent && byId.has(r.parent)) links.push({ source: r.parent, target: r.id });
+  }
+  const kids = new Map(nodes.map(n => [n.id, []]));
+  const hasParent = new Set();
+  for (const l of links) {
+    const child = byId.get(l.target);
+    if (child && kids.has(l.source)) {
+      kids.get(l.source).push(child);
+      hasParent.add(l.target);
+    }
+  }
+  for (const arr of kids.values()) arr.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const roots = nodes.filter(n => !hasParent.has(n.id));
+  if (!roots.length && nodes.length) roots.push(nodes[0]);
+
+  const COL = 196, ROW = 112;
+  function weight(n) {
+    const c = kids.get(n.id) || [];
+    n._w = c.length ? c.reduce((sum, k) => sum + weight(k), 0) : 1;
+    return n._w;
+  }
+  roots.forEach(weight);
+  let maxDepth = 0;
+  function place(n, depth, x0) {
+    maxDepth = Math.max(maxDepth, depth);
+    const c = kids.get(n.id) || [];
+    if (!c.length) {
+      n.x = x0 + COL / 2;
+      n.y = 52 + depth * ROW;
+      return COL;
+    }
+    let cursor = x0;
+    for (const k of c) cursor += place(k, depth + 1, cursor);
+    n.x = (c[0].x + c[c.length - 1].x) / 2;
+    n.y = 52 + depth * ROW;
+    return Math.max(COL, cursor - x0);
+  }
+  let edge = 20;
+  for (const r of roots) edge += place(r, 0, edge);
+  const width = Math.max(720, edge + 24);
+  const height = Math.max(420, 52 + (maxDepth + 1) * ROW + 36);
+  svg.attr('viewBox', `0 0 ${width} ${height}`).attr('preserveAspectRatio', 'xMinYMin meet');
+  svg.attr('width', width).attr('height', height);
+  svg.style('width', width + 'px').style('height', height + 'px');
+
+  const scroller = svg.node().parentElement;
+  const focus = nodes.find(n => n.role === 'house') || nodes[0];
+  if (scroller && focus) {
+    requestAnimationFrame(() => {
+      scroller.scrollLeft = Math.max(0, focus.x - scroller.clientWidth / 2);
+      scroller.scrollTop = 0;
     });
-  nodeGroup.append('circle').attr('r', function (d) { return d.radius + 6; })
+  }
+
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.35, 2.8]).on('zoom', (ev) => g.attr('transform', ev.transform)));
+  g.append('g').selectAll('path').data(links).join('path')
     .attr('fill', 'none')
-    .attr('stroke', function (d) { return d.role === 'master' ? '#ffd27a' : d.color; })
-    .attr('stroke-opacity', 0.7).attr('stroke-width', function (d) { return d.role === 'master' ? 2 : 1; });
-  nodeGroup.append('circle').attr('r', function (d) { return d.radius; })
-    .attr('fill', function (d) { return d.color; })
+    .attr('stroke', '#443a8c')
+    .attr('stroke-width', 1.6)
+    .attr('stroke-opacity', 0.85)
+    .attr('d', (d) => {
+      const a = byId.get(d.source), b = byId.get(d.target);
+      if (!a || !b) return '';
+      const mid = (a.y + b.y) / 2;
+      return `M${a.x},${a.y + (a.radius || 12)} C${a.x},${mid} ${b.x},${mid} ${b.x},${b.y - (b.radius || 12)}`;
+    });
+  const nodeGroup = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('transform', (d) => `translate(${d.x},${d.y})`)
+    .style('cursor', 'pointer')
+    .on('click', (ev, d) => {
+      ev.stopPropagation();
+      if (d.role === 'house') return;
+      if (findTreeNode(houseRoot(), d.id)) {
+        setMode('universe');
+        loadManifest(d.id);
+        return;
+      }
+      if (d.repo) window.open('https://' + String(d.repo).replace(/^https?:\/\//, ''), '_blank', 'noopener');
+    });
+  nodeGroup.append('circle').attr('r', (d) => d.radius + 5).attr('fill', 'none')
+    .attr('stroke', (d) => d.unlabeled ? '#7ce8d4' : (d.role === 'house' ? '#ffd27a' : d.color))
+    .attr('stroke-opacity', 0.55)
+    .attr('stroke-width', (d) => (d.role === 'house' || d.role === 'master') ? 2 : 1)
+    .attr('stroke-dasharray', (d) => d.unlabeled ? '3 2' : null);
+  nodeGroup.append('circle').attr('r', (d) => d.radius).attr('fill', (d) => d.color)
     .attr('stroke', '#0a0820').attr('stroke-width', 2);
-  nodeGroup.append('text').text(function (d) { return d.name; })
-    .attr('text-anchor', 'middle').attr('dy', function (d) { return d.radius + 18; })
+  nodeGroup.append('text')
+    .text((d) => {
+      const name = d.name || d.id || '';
+      return name.length > 28 ? name.slice(0, 26) + '…' : name;
+    })
+    .attr('text-anchor', 'middle').attr('dy', (d) => d.radius + 16)
     .attr('font-family', 'Cormorant Garamond, serif')
-    .attr('font-size', function (d) { return d.role === 'master' ? 16 : 13; })
-    .attr('font-weight', function (d) { return d.role === 'master' ? 600 : 500; })
-    .attr('fill', '#f5efe6').attr('pointer-events', 'none');
-  nodeGroup.append('title').text(function (d) { return d.name + (d.description ? '\n' + d.description : ''); });
+    .attr('font-size', (d) => d.role === 'house' ? 16 : 13)
+    .attr('font-weight', (d) => d.role === 'house' ? 600 : 500)
+    .attr('fill', '#f5efe6')
+    .attr('stroke', '#0a0820').attr('stroke-width', 4).attr('paint-order', 'stroke')
+    .attr('pointer-events', 'none');
+  nodeGroup.append('title').text((d) => {
+    const mark = d.unlabeled ? '\nunlabeled — appearance is not enrollment' : '';
+    return `${d.name}\n${d.role || ''} · ${d.maturity || ''}${mark}\n${(d.description || '').trim()}`;
+  });
 }

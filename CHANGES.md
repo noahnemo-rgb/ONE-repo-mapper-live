@@ -1,5 +1,12 @@
 # Repo Mapper Static — Changelog
 
+## 2026-09-29 — House tree on the Multiverse graph
+
+- ONE Multiverse mind-map draws `HOUSE_TREE` (MAP.yaml), not the three-universe ring.
+- Parent links: governance, universes, ecology, ecosystems. Oceanus stays unlabeled (dashed teal).
+- Layer 4 is not invented. A click opens that branch in Universe mode.
+- Universe-mode tree is unchanged.
+
 ## 2026-09-27 — Champagne tower
 
 - Source of truth moved to `ONE-Multiverse/MAP.yaml`. One tree. One pour.

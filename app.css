@@ -853,7 +853,8 @@ html{ color-scheme: dark; }
     rgba(10,8,32,0.5);
   border: 1px solid var(--border);
 }
-#universeMap{
+#universeMap,
+#multiverseMap{
   width: auto;
   height: auto;
   min-height: 0;
