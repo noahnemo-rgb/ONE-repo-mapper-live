@@ -921,10 +921,10 @@ function renderMultiverseView(data) {
     </div>
 
     <section class="multiverse-map-section">
-      <h3 class="section-label">House tree</h3>
-      <p class="universe-card-desc" id="houseTreeNote">Every poured tier. Ecology and ecosystems hang under their universe. Oceanus stays unlabeled. Layer 4 is empty until a leaf is poured.</p>
+      <h3 class="section-label">Relational mind-map</h3>
+      <p class="universe-card-desc" id="houseTreeNote">Relationships, not a tree. Drag. Zoom. Double-click a node to look closer. Oceanus stays unlabeled.</p>
       <div class="map-scroll">
-        <svg id="multiverseMap" class="universe-map" role="img" aria-label="ONE Multiverse house tree"></svg>
+        <svg id="multiverseMap" class="universe-map" role="img" aria-label="ONE Multiverse relational mind-map"></svg>
       </div>
     </section>
 
@@ -1784,104 +1784,168 @@ Do not copy these rows into ONE-Multiverse, Urban Mines, Oceanus, or HASEOS repo
   URL.revokeObjectURL(url);
 });
 
-function renderUniverseMap(m) {
-  const svg=d3.select('#universeMap'); svg.selectAll('*').remove();
-  const nodes=m.repos.map(r=>({...r,radius:ROLE_SIZE[r.role]||12,color:MATURITY[r.maturity]?.color||'#7a82a8'}));
-  const byId=new Map(nodes.map(n=>[n.id,n]));
-  const links=[];
+function drawRelationalMap(svgSel, repos, opts) {
+  opts = opts || {};
+  const svg = d3.select(svgSel);
+  if (svg.empty() || !svg.node()) return;
+  if (svg.node()._sim) svg.node()._sim.stop();
+  svg.selectAll('*').remove();
+
+  const wrap = svg.node().parentElement;
+  const width = Math.max(720, (wrap && wrap.clientWidth) || 800);
+  const height = Math.max(560, (wrap && wrap.clientHeight) || 640);
+  svg.attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('width', '100%')
+    .attr('height', height)
+    .style('width', '100%')
+    .style('height', height + 'px');
+
+  const nodes = (repos || []).map(r => ({
+    ...r,
+    radius: ROLE_SIZE[r.role] || 12,
+    color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8',
+  }));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const links = [];
   for (const r of nodes) {
-    if (r.parent&&byId.has(r.parent)) links.push({source:r.parent,target:r.id,kind:'parent'});
+    if (r.parent && byId.has(r.parent)) links.push({ source: r.parent, target: r.id, kind: 'parent' });
   }
-  const kids=new Map(nodes.map(n=>[n.id,[]]));
-  const hasParent=new Set();
-  for (const l of links) {
-    const child=byId.get(l.target);
-    if (child && kids.has(l.source)) { kids.get(l.source).push(child); hasParent.add(l.target); }
-  }
-  for (const arr of kids.values()) arr.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-  const roots=nodes.filter(n=>!hasParent.has(n.id));
-  if (!roots.length && nodes.length) roots.push(nodes[0]);
-
-  const COL=196, ROW=112;
-  function weight(n){
-    const c=kids.get(n.id)||[];
-    n._w=c.length?c.reduce((sum,k)=>sum+weight(k),0):1;
-    return n._w;
-  }
-  roots.forEach(weight);
-  let maxDepth=0;
-  function place(n, depth, x0){
-    maxDepth=Math.max(maxDepth, depth);
-    const c=kids.get(n.id)||[];
-    if (!c.length){
-      n.x=x0+COL/2; n.y=52+depth*ROW;
-      return COL;
+  for (const r of nodes) {
+    for (const ref of (r.references || [])) {
+      const id = String(ref).split('/').pop();
+      if (!byId.has(id) || id === r.id) continue;
+      if (links.some(l => (l.source === r.id && l.target === id) || (l.source === id && l.target === r.id))) continue;
+      links.push({ source: r.id, target: id, kind: 'reference' });
     }
-    let cursor=x0;
-    for (const k of c) cursor+=place(k, depth+1, cursor);
-    n.x=(c[0].x+c[c.length-1].x)/2;
-    n.y=52+depth*ROW;
-    return Math.max(COL, cursor-x0);
-  }
-  let edge=20;
-  for (const r of roots) edge+=place(r, 0, edge);
-  const width=Math.max(720, edge+24);
-  const height=Math.max(340, 52+(maxDepth+1)*ROW+28);
-  svg.attr('viewBox',`0 0 ${width} ${height}`).attr('preserveAspectRatio','xMinYMin meet');
-  svg.attr('width', width).attr('height', height);
-  svg.style('width', width+'px').style('height', height+'px');
-  const scroller = svg.node().parentElement;
-  const focus = nodes.find(n => n.role === 'house') || nodes[0];
-  if (scroller && focus) {
-    requestAnimationFrame(() => {
-      scroller.scrollLeft = Math.max(0, focus.x - scroller.clientWidth / 2);
-      scroller.scrollTop = 0;
-    });
   }
 
-  const legend=$('#mapLegend');
-  legend.innerHTML=Object.entries(MATURITY).sort((a,b)=>a[1].order-b[1].order)
-    .map(([k,v])=>`<span class="leg"><span class="dot" style="background:${v.color}"></span>${v.label}</span>`).join('');
+  const focusId = svg.node()._focusId || null;
+  let visibleIds;
+  if (focusId && byId.has(focusId)) {
+    visibleIds = new Set([focusId]);
+    for (const l of links) {
+      if (l.source === focusId || l.target === focusId) {
+        visibleIds.add(l.source);
+        visibleIds.add(l.target);
+      }
+    }
+    const hop = [...visibleIds];
+    for (const l of links) {
+      if (hop.includes(l.source) || hop.includes(l.target)) {
+        visibleIds.add(l.source);
+        visibleIds.add(l.target);
+      }
+    }
+  } else {
+    visibleIds = new Set(nodes.map(n => n.id));
+  }
+  const visNodes = nodes.filter(n => visibleIds.has(n.id));
+  const visLinks = links.filter(l => visibleIds.has(l.source) && visibleIds.has(l.target));
 
-  const defs=svg.append('defs');
-  const glow=defs.append('filter').attr('id','glow').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
-  glow.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');
-  const merge=glow.append('feMerge');
-  merge.append('feMergeNode').attr('in','blur');
-  merge.append('feMergeNode').attr('in','SourceGraphic');
+  for (const n of visNodes) {
+    const i = visNodes.indexOf(n);
+    const angle = (i / Math.max(visNodes.length, 1)) * Math.PI * 2;
+    n.x = width / 2 + Math.cos(angle) * 170;
+    n.y = height / 2 + Math.sin(angle) * 170;
+    if (n.role === 'house' || n.role === 'master') {
+      n.x = width / 2;
+      n.y = height / 2;
+    }
+  }
 
-  const g=svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.35,2.8]).on('zoom',ev=>g.attr('transform',ev.transform)));
-  g.append('g').selectAll('path').data(links).join('path')
-    .attr('fill','none')
-    .attr('stroke','#443a8c')
-    .attr('stroke-width',1.6)
-    .attr('stroke-opacity',0.85)
-    .attr('d',d=>{
-      const a=byId.get(d.source), b=byId.get(d.target);
-      if(!a||!b) return '';
-      const mid=(a.y+b.y)/2;
-      return `M${a.x},${a.y+ (a.radius||12)} C${a.x},${mid} ${b.x},${mid} ${b.x},${b.y-(b.radius||12)}`;
+  const g = svg.append('g');
+  const zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', ev => g.attr('transform', ev.transform));
+  svg.on('dblclick.zoom', null);
+  svg.call(zoom);
+  svg.on('dblclick', (ev) => {
+    if (ev.target === svg.node()) {
+      svg.node()._focusId = null;
+      drawRelationalMap(svgSel, repos, opts);
+    }
+  });
+
+  const defs = svg.append('defs');
+  const glow = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+  glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+  const merge = glow.append('feMerge');
+  merge.append('feMergeNode').attr('in', 'blur');
+  merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  const sim = d3.forceSimulation(visNodes)
+    .force('link', d3.forceLink(visLinks).id(d => d.id).distance(l => l.kind === 'reference' ? 140 : 88).strength(l => l.kind === 'reference' ? 0.12 : 0.55))
+    .force('charge', d3.forceManyBody().strength(-280))
+    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.06))
+    .force('x', d3.forceX(width / 2).strength(0.05))
+    .force('y', d3.forceY(height / 2).strength(0.05))
+    .force('collide', d3.forceCollide().radius(d => d.radius + 16));
+  svg.node()._sim = sim;
+
+  const link = g.append('g').selectAll('line').data(visLinks).join('line')
+    .attr('stroke', d => d.kind === 'reference' ? '#9b6bff' : '#443a8c')
+    .attr('stroke-width', d => d.kind === 'reference' ? 1 : 1.8)
+    .attr('stroke-opacity', d => d.kind === 'reference' ? 0.45 : 0.75)
+    .attr('stroke-dasharray', d => d.kind === 'reference' ? '4,4' : null);
+
+  const nodeGroup = g.append('g').selectAll('g').data(visNodes).join('g')
+    .style('cursor', 'pointer')
+    .call(drag(sim))
+    .on('click', (ev, d) => {
+      ev.stopPropagation();
+      if (opts.onClick) opts.onClick(ev, d);
+    })
+    .on('dblclick', (ev, d) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      svg.node()._focusId = d.id;
+      drawRelationalMap(svgSel, repos, opts);
     });
-  const nodeGroup=g.append('g').selectAll('g').data(nodes).join('g')
-    .attr('transform',d=>`translate(${d.x},${d.y})`)
-    .style('cursor','pointer')
-    .on('click',(ev,d)=>{ ev.stopPropagation(); showRepoDetail(d); });
-  nodeGroup.append('circle').attr('r',d=>d.radius+5).attr('fill','none')
-    .attr('stroke',d=>d.unlabeled?'#7ce8d4':d.color).attr('stroke-opacity',0.45)
-    .attr('stroke-width',d=>(d.role==='house'||d.role==='master')?2:1)
-    .attr('stroke-dasharray',d=>d.unlabeled?'3 2':null);
-  nodeGroup.append('circle').attr('r',d=>d.radius).attr('fill',d=>d.color)
-    .attr('stroke','#0a0820').attr('stroke-width',2)
-    .attr('filter',d=>(d.role==='house'||d.role==='master')?'url(#glow)':null);
+
+  nodeGroup.append('circle').attr('r', d => d.radius + 5).attr('fill', 'none')
+    .attr('stroke', d => d.unlabeled ? '#7ce8d4' : d.color)
+    .attr('stroke-opacity', 0.45)
+    .attr('stroke-width', d => (d.role === 'house' || d.role === 'master') ? 2 : 1)
+    .attr('stroke-dasharray', d => d.unlabeled ? '3 2' : null);
+  nodeGroup.append('circle').attr('r', d => d.radius).attr('fill', d => d.color)
+    .attr('stroke', '#0a0820').attr('stroke-width', 2)
+    .attr('filter', d => (d.role === 'house' || d.role === 'master') ? 'url(#glow)' : null);
   nodeGroup.append('text')
-    .text(d=>{ const name=d.name||d.id||''; return name.length>28?name.slice(0,26)+'…':name; })
-    .attr('text-anchor','middle').attr('dy',d=>d.radius+16)
-    .attr('font-family','Cormorant Garamond, serif').attr('font-size',14).attr('font-weight',500)
-    .attr('fill','#f5efe6')
-    .attr('stroke','#0a0820').attr('stroke-width',4).attr('paint-order','stroke')
-    .attr('pointer-events','none');
-  nodeGroup.append('title').text(d=>`${d.name}\n${d.role||''} · ${d.maturity||''}\n${(d.description||'').trim()}`);
+    .text(d => {
+      const name = d.name || d.id || '';
+      return name.length > 28 ? name.slice(0, 26) + '…' : name;
+    })
+    .attr('text-anchor', 'middle').attr('dy', d => d.radius + 16)
+    .attr('font-family', 'Cormorant Garamond, serif')
+    .attr('font-size', d => (d.role === 'house' || d.role === 'master') ? 16 : 13)
+    .attr('font-weight', d => (d.role === 'house' || d.role === 'master') ? 600 : 500)
+    .attr('fill', '#f5efe6')
+    .attr('stroke', '#0a0820').attr('stroke-width', 4).attr('paint-order', 'stroke')
+    .attr('pointer-events', 'none');
+  nodeGroup.append('title').text(d => {
+    const mark = d.unlabeled ? '\nunlabeled — appearance is not enrollment' : '';
+    return `${d.name}\n${d.role || ''} · ${d.maturity || ''}${mark}\n${(d.description || '').trim()}`;
+  });
+
+  sim.on('tick', () => {
+    const pad = 40;
+    for (const n of visNodes) {
+      n.x = Math.max(pad, Math.min(width - pad, n.x));
+      n.y = Math.max(pad, Math.min(height - pad, n.y));
+    }
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function renderUniverseMap(m) {
+  const legend = $('#mapLegend');
+  if (legend) {
+    legend.innerHTML = Object.entries(MATURITY).sort((a, b) => a[1].order - b[1].order)
+      .map(([k, v]) => `<span class="leg"><span class="dot" style="background:${v.color}"></span>${v.label}</span>`).join('');
+  }
+  drawRelationalMap('#universeMap', m.repos || [], {
+    onClick: (ev, d) => { ev.stopPropagation(); showRepoDetail(d); },
+  });
 }
 
 function showRepoDetail(r) {
@@ -2165,100 +2229,20 @@ function renderGapsTable(data) {
 function renderMultiverseMap() {
   const svg = d3.select('#multiverseMap');
   if (svg.empty() || !svg.node()) return;
-  svg.selectAll('*').remove();
 
   let repos = [];
   try { repos = flattenTree(houseRoot()); } catch (e) { repos = []; }
   const note = document.getElementById('houseTreeNote');
   if (!repos.length) {
-    if (note) note.textContent = 'House tree did not load. MAP.yaml is the source.';
+    if (note) note.textContent = 'Mind-map did not load. MAP.yaml is the source.';
+    svg.selectAll('*').remove();
     return;
   }
   if (note) {
-    const roles = {};
-    for (const r of repos) roles[r.role] = (roles[r.role] || 0) + 1;
-    note.textContent = repos.length + ' nodes. Governance, universes, ecology, ecosystems. Layer 4 stays empty until a leaf is poured. Oceanus is unlabeled.';
+    note.textContent = repos.length + ' related nodes. Drag a body. Scroll to zoom. Double-click a node for a closer look; double-click empty space for the overview. Oceanus stays unlabeled.';
   }
-
-  const nodes = repos.map(r => ({
-    ...r,
-    radius: ROLE_SIZE[r.role] || 12,
-    color: (MATURITY[r.maturity] && MATURITY[r.maturity].color) || '#7a82a8',
-  }));
-  const byId = new Map(nodes.map(n => [n.id, n]));
-  const links = [];
-  for (const r of nodes) {
-    if (r.parent && byId.has(r.parent)) links.push({ source: r.parent, target: r.id });
-  }
-  const kids = new Map(nodes.map(n => [n.id, []]));
-  const hasParent = new Set();
-  for (const l of links) {
-    const child = byId.get(l.target);
-    if (child && kids.has(l.source)) {
-      kids.get(l.source).push(child);
-      hasParent.add(l.target);
-    }
-  }
-  for (const arr of kids.values()) arr.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  const roots = nodes.filter(n => !hasParent.has(n.id));
-  if (!roots.length && nodes.length) roots.push(nodes[0]);
-
-  const COL = 196, ROW = 112;
-  function weight(n) {
-    const c = kids.get(n.id) || [];
-    n._w = c.length ? c.reduce((sum, k) => sum + weight(k), 0) : 1;
-    return n._w;
-  }
-  roots.forEach(weight);
-  let maxDepth = 0;
-  function place(n, depth, x0) {
-    maxDepth = Math.max(maxDepth, depth);
-    const c = kids.get(n.id) || [];
-    if (!c.length) {
-      n.x = x0 + COL / 2;
-      n.y = 52 + depth * ROW;
-      return COL;
-    }
-    let cursor = x0;
-    for (const k of c) cursor += place(k, depth + 1, cursor);
-    n.x = (c[0].x + c[c.length - 1].x) / 2;
-    n.y = 52 + depth * ROW;
-    return Math.max(COL, cursor - x0);
-  }
-  let edge = 20;
-  for (const r of roots) edge += place(r, 0, edge);
-  const width = Math.max(720, edge + 24);
-  const height = Math.max(420, 52 + (maxDepth + 1) * ROW + 36);
-  svg.attr('viewBox', `0 0 ${width} ${height}`).attr('preserveAspectRatio', 'xMinYMin meet');
-  svg.attr('width', width).attr('height', height);
-  svg.style('width', width + 'px').style('height', height + 'px');
-
-  const scroller = svg.node().parentElement;
-  const focus = nodes.find(n => n.role === 'house') || nodes[0];
-  if (scroller && focus) {
-    requestAnimationFrame(() => {
-      scroller.scrollLeft = Math.max(0, focus.x - scroller.clientWidth / 2);
-      scroller.scrollTop = 0;
-    });
-  }
-
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.35, 2.8]).on('zoom', (ev) => g.attr('transform', ev.transform)));
-  g.append('g').selectAll('path').data(links).join('path')
-    .attr('fill', 'none')
-    .attr('stroke', '#443a8c')
-    .attr('stroke-width', 1.6)
-    .attr('stroke-opacity', 0.85)
-    .attr('d', (d) => {
-      const a = byId.get(d.source), b = byId.get(d.target);
-      if (!a || !b) return '';
-      const mid = (a.y + b.y) / 2;
-      return `M${a.x},${a.y + (a.radius || 12)} C${a.x},${mid} ${b.x},${mid} ${b.x},${b.y - (b.radius || 12)}`;
-    });
-  const nodeGroup = g.append('g').selectAll('g').data(nodes).join('g')
-    .attr('transform', (d) => `translate(${d.x},${d.y})`)
-    .style('cursor', 'pointer')
-    .on('click', (ev, d) => {
+  drawRelationalMap('#multiverseMap', repos, {
+    onClick: (ev, d) => {
       ev.stopPropagation();
       if (d.role === 'house') return;
       if (findTreeNode(houseRoot(), d.id)) {
@@ -2267,28 +2251,6 @@ function renderMultiverseMap() {
         return;
       }
       if (d.repo) window.open('https://' + String(d.repo).replace(/^https?:\/\//, ''), '_blank', 'noopener');
-    });
-  nodeGroup.append('circle').attr('r', (d) => d.radius + 5).attr('fill', 'none')
-    .attr('stroke', (d) => d.unlabeled ? '#7ce8d4' : (d.role === 'house' ? '#ffd27a' : d.color))
-    .attr('stroke-opacity', 0.55)
-    .attr('stroke-width', (d) => (d.role === 'house' || d.role === 'master') ? 2 : 1)
-    .attr('stroke-dasharray', (d) => d.unlabeled ? '3 2' : null);
-  nodeGroup.append('circle').attr('r', (d) => d.radius).attr('fill', (d) => d.color)
-    .attr('stroke', '#0a0820').attr('stroke-width', 2);
-  nodeGroup.append('text')
-    .text((d) => {
-      const name = d.name || d.id || '';
-      return name.length > 28 ? name.slice(0, 26) + '…' : name;
-    })
-    .attr('text-anchor', 'middle').attr('dy', (d) => d.radius + 16)
-    .attr('font-family', 'Cormorant Garamond, serif')
-    .attr('font-size', (d) => d.role === 'house' ? 16 : 13)
-    .attr('font-weight', (d) => d.role === 'house' ? 600 : 500)
-    .attr('fill', '#f5efe6')
-    .attr('stroke', '#0a0820').attr('stroke-width', 4).attr('paint-order', 'stroke')
-    .attr('pointer-events', 'none');
-  nodeGroup.append('title').text((d) => {
-    const mark = d.unlabeled ? '\nunlabeled — appearance is not enrollment' : '';
-    return `${d.name}\n${d.role || ''} · ${d.maturity || ''}${mark}\n${(d.description || '').trim()}`;
+    },
   });
 }

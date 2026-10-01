@@ -1,5 +1,12 @@
 # Repo Mapper Static — Changelog
 
+## 2026-09-30 — Restore D3 force mind-map
+
+- Multiverse and Universe canvases use the June D3 force graph again: drag, zoom, settle by relationship.
+- Double-click a node for a closer look (neighborhood). Double-click empty space for the overview.
+- Data pour is unchanged: MAP.yaml, unlabeled Oceanus, gap scan, add-to-map.
+- The static house-tree layout is gone.
+
 ## 2026-09-29 — House tree on the Multiverse graph
 
 - ONE Multiverse mind-map draws `HOUSE_TREE` (MAP.yaml), not the three-universe ring.
