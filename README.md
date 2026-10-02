@@ -51,7 +51,7 @@ repo-mapper-live/
 └── multiverse.yaml     # Built-in ONE Multiverse manifest
 ```
 
-**Fully static — no backend required.** All GitHub API calls go directly to `api.github.com` from the browser. AI summary features are available via the companion backend (see below).
+**Fully static — no backend required.** All GitHub API calls go directly to `api.github.com` from the browser. On Key Files, Ask uses [ai-buffer](https://github.com/noahnemo-rgb/ai-buffer-template) pinned at `d0c7cbc`. Puter runs first. An OpenRouter key saved in the browser tries Space Bunny Alpha, then gpt-4o-mini. The key is not stored on a server.
 
 ---
 
