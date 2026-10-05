@@ -3,6 +3,7 @@
 // When signed in via GitHub OAuth, the rate limit rises from 60 → 5,000 req/hr.
 
 import * as d3 from 'https://esm.sh/d3@7';
+import { askMapper } from './ai-route.js';
 
 const GH_API = 'https://api.github.com';
 const $ = (s) => document.querySelector(s);
@@ -2254,3 +2255,40 @@ function renderMultiverseMap() {
     },
   });
 }
+
+const AI_KEY = 'repomapper_openrouter_key';
+const aiKeyInput = $('#aiKey');
+if (aiKeyInput) {
+  aiKeyInput.value = localStorage.getItem(AI_KEY) || '';
+  aiKeyInput.addEventListener('input', () => {
+    const value = aiKeyInput.value.trim();
+    if (value) localStorage.setItem(AI_KEY, value);
+    else localStorage.removeItem(AI_KEY);
+  });
+}
+$('#aiAskBtn')?.addEventListener('click', async () => {
+  const answer = $('#aiAnswer');
+  const error = $('#aiError');
+  const question = ($('#aiQuestion')?.value || '').trim();
+  if (!CURRENT_REPO) {
+    error.hidden = false;
+    error.textContent = 'Analyze a repo first.';
+    return;
+  }
+  if (!question) return;
+  error.hidden = true;
+  answer.hidden = false;
+  answer.textContent = 'Asking…';
+  try {
+    const text = await askMapper({
+      apiKey: localStorage.getItem(AI_KEY) || '',
+      current: CURRENT_REPO,
+      question,
+    });
+    answer.textContent = text;
+  } catch (err) {
+    answer.hidden = true;
+    error.hidden = false;
+    error.textContent = err?.message || 'The question did not go through.';
+  }
+});
