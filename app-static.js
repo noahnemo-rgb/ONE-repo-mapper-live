@@ -3,7 +3,8 @@
 // When signed in via GitHub OAuth, the rate limit rises from 60 → 5,000 req/hr.
 
 import * as d3 from 'https://esm.sh/d3@7';
-import { askMapper } from './ai-route.js';
+import { askMapper, createMapperKeyRing, purgePersistedAiKeys, resolveAiRelayUrl } from './ai-route.js';
+import { createLocalStorageStore, createProviderSelectionStore, loadDashboard } from './vendor/ai-buffer/index.js';
 
 const GH_API = 'https://api.github.com';
 const $ = (s) => document.querySelector(s);
@@ -2256,16 +2257,89 @@ function renderMultiverseMap() {
   });
 }
 
-const AI_KEY = 'repomapper_openrouter_key';
-const aiKeyInput = $('#aiKey');
-if (aiKeyInput) {
-  aiKeyInput.value = localStorage.getItem(AI_KEY) || '';
-  aiKeyInput.addEventListener('input', () => {
-    const value = aiKeyInput.value.trim();
-    if (value) localStorage.setItem(AI_KEY, value);
-    else localStorage.removeItem(AI_KEY);
-  });
+purgePersistedAiKeys();
+const aiKeyRing = createMapperKeyRing();
+const aiSelection = createProviderSelectionStore(createLocalStorageStore());
+
+async function drawAiProviders() {
+  const host = document.querySelector('#aiProviders');
+  if (!host) return;
+  const probe = await aiKeyRing.probe();
+  let puterSignedIn = false;
+  try { puterSignedIn = Boolean(globalThis.puter?.auth?.isSignedIn?.()); } catch { puterSignedIn = false; }
+  const rows = await loadDashboard(aiSelection, { ...probe, puterSignedIn });
+  host.replaceChildren();
+  for (const row of rows) {
+    const item = document.createElement('div');
+    item.className = 'ai-provider';
+    if (row.activeLabel) item.dataset.active = 'true';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn-secondary';
+    button.textContent = row.label;
+    button.addEventListener('click', async () => {
+      await aiSelection.setProvider(row.id);
+      await drawAiProviders();
+    });
+
+    const status = document.createElement('span');
+    status.className = 'muted small';
+    status.textContent = row.status;
+
+    const hint = document.createElement('span');
+    hint.className = 'muted small';
+    hint.textContent = row.keyHint;
+
+    const active = document.createElement('span');
+    active.className = 'muted small';
+    active.textContent = row.activeLabel;
+
+    const label = document.createElement('label');
+    label.className = 'muted small';
+    const modelName = document.createElement('span');
+    modelName.textContent = row.modelLabel;
+    const modelInput = document.createElement('input');
+    modelInput.className = 'search-input';
+    modelInput.value = row.model;
+    modelInput.autocomplete = 'off';
+    modelInput.spellcheck = false;
+    modelInput.addEventListener('change', async () => {
+      const error = $('#aiError');
+      try {
+        await aiSelection.setModel(row.id, modelInput.value);
+        if (error) error.hidden = true;
+        await drawAiProviders();
+      } catch (err) {
+        if (!error) return;
+        error.hidden = false;
+        error.textContent = err?.message || '';
+      }
+    });
+    label.append(modelName, modelInput);
+    item.append(button, status, hint, active, label);
+
+    if (row.id !== 'puter') {
+      const keyInput = document.createElement('input');
+      keyInput.type = 'password';
+      keyInput.className = 'search-input';
+      keyInput.autocomplete = 'off';
+      keyInput.spellcheck = false;
+      keyInput.setAttribute('aria-label', row.label);
+      keyInput.addEventListener('change', async () => {
+        const value = keyInput.value.trim();
+        if (value) await aiKeyRing.setKey(row.id, value);
+        else await aiKeyRing.clearKey(row.id);
+        keyInput.value = '';
+        await drawAiProviders();
+      });
+      item.append(keyInput);
+    }
+    host.append(item);
+  }
 }
+drawAiProviders();
+
 $('#aiAskBtn')?.addEventListener('click', async () => {
   const answer = $('#aiAnswer');
   const error = $('#aiError');
@@ -2281,9 +2355,11 @@ $('#aiAskBtn')?.addEventListener('click', async () => {
   answer.textContent = 'Asking…';
   try {
     const text = await askMapper({
-      apiKey: localStorage.getItem(AI_KEY) || '',
+      keys: await aiKeyRing.keys(),
+      selection: await aiSelection.getSelection(),
       current: CURRENT_REPO,
       question,
+      proxyUrl: resolveAiRelayUrl(location.origin),
     });
     answer.textContent = text;
   } catch (err) {

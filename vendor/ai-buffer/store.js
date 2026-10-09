@@ -1,4 +1,19 @@
+import { AiBufferError } from "./errors.js";
 import { DEFAULT_MODEL } from "./messages.js";
+import { looksLikeSecret } from "./redact.js";
+const WEB_DURABLE = Symbol.for("ai-buffer.web-durable-storage");
+function markWebDurable(store) {
+    Object.defineProperty(store, WEB_DURABLE, { value: true });
+    return store;
+}
+export function isWebDurableStore(store) {
+    return Boolean(store[WEB_DURABLE]);
+}
+function assertKeyStore(store) {
+    if (isWebDurableStore(store)) {
+        throw new AiBufferError("provider_error", "API keys cannot be saved in localStorage or sessionStorage. On a phone, use expo-secure-store. On the web, use createMemoryKeyStore for this page load, or send the key once to the server vault.");
+    }
+}
 export function createMemoryStore(initial = {}) {
     const values = new Map(Object.entries(initial));
     return {
@@ -15,7 +30,7 @@ export function createLocalStorageStore(storage = globalThis.localStorage) {
     if (!storage) {
         throw new Error("localStorage is not available. Pass a store, or use createMemoryStore for tests.");
     }
-    return {
+    return markWebDurable({
         get: (key) => storage.getItem(key),
         set: (key, value) => {
             storage.setItem(key, value);
@@ -23,16 +38,45 @@ export function createLocalStorageStore(storage = globalThis.localStorage) {
         delete: (key) => {
             storage.removeItem(key);
         },
-    };
+    });
 }
 const DEFAULT_KEY_NAME = "ai-buffer.openrouter_key";
 const DEFAULT_MODEL_NAME = "ai-buffer.openrouter_model";
+export const PROVIDER_KEY_NAMES = {
+    openrouter: "ai-buffer.openrouter_key",
+    "space-bunny": "ai-buffer.openrouter_key",
+    "vercel-gateway": "ai-buffer.gateway_key",
+    gemini: "ai-buffer.gemini_key",
+    nvidia: "ai-buffer.nvidia_key",
+    llmapi: "ai-buffer.llmapi_key",
+};
 /**
- * Saves an OpenRouter key in whatever store the app already has.
- * Phones can pass expo-secure-store. Browsers can pass localStorage.
- * The key is never sent anywhere except OpenRouter.
+ * Saves one provider key in device secure storage or in memory.
+ * `createLocalStorageStore` is rejected. The key is not written to the web page.
+ */
+export function createProviderKeyStore(store, provider, keyName = PROVIDER_KEY_NAMES[provider]) {
+    assertKeyStore(store);
+    return {
+        getKey: async () => {
+            const value = await store.get(keyName);
+            const trimmed = value?.trim();
+            return trimmed ? trimmed : null;
+        },
+        setKey: (value) => Promise.resolve(store.set(keyName, value.trim())),
+        clearKey: () => Promise.resolve(store.delete(keyName)),
+    };
+}
+/** Key lives in this process only. A reload drops it. */
+export function createMemoryKeyStore(provider = "openrouter") {
+    return createProviderKeyStore(createMemoryStore(), provider);
+}
+/**
+ * Saves an OpenRouter key in device secure storage or in memory.
+ * Passing `createLocalStorageStore` throws. Use `createMemoryKeyStore` on the web,
+ * or send the key once to the server vault.
  */
 export function createOpenRouterKeyStore(store, names) {
+    assertKeyStore(store);
     const keyName = names?.key ?? DEFAULT_KEY_NAME;
     const modelName = names?.model ?? DEFAULT_MODEL_NAME;
     return {
@@ -47,6 +91,12 @@ export function createOpenRouterKeyStore(store, names) {
             const value = (await store.get(modelName))?.trim();
             return value || DEFAULT_MODEL;
         },
-        setModel: (value) => Promise.resolve(store.set(modelName, value.trim())),
+        setModel: (value) => {
+            const trimmed = value.trim();
+            if (looksLikeSecret(trimmed)) {
+                return Promise.reject(new AiBufferError("provider_error", "The model field cannot store an API key."));
+            }
+            return Promise.resolve(store.set(modelName, trimmed));
+        },
     };
 }

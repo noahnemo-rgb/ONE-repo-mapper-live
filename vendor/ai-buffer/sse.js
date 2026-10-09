@@ -1,9 +1,10 @@
+import { redactSecrets } from "./redact.js";
 /**
  * Read complete Server-Sent Events from an accumulated response body.
  * `parsedThrough` is the index already consumed. Pass the same growing string
  * on every chunk.
  */
-export function drainOpenRouterSse(fullText, parsedThrough) {
+export function drainOpenRouterSse(fullText, parsedThrough, providerName = "OpenRouter") {
     let text = "";
     const slice = fullText.slice(parsedThrough);
     const lines = slice.split("\n");
@@ -31,7 +32,7 @@ export function drainOpenRouterSse(fullText, parsedThrough) {
         }
         if (chunk.error) {
             const message = typeof chunk.error === "string" ? chunk.error : chunk.error.message;
-            throw new Error(message || "OpenRouter stream error");
+            throw new Error(redactSecrets(message || `${providerName} stream error`));
         }
         const content = chunk.choices?.[0]?.delta?.content;
         if (content)
@@ -39,7 +40,7 @@ export function drainOpenRouterSse(fullText, parsedThrough) {
     }
     return { text, parsedThrough: consumed };
 }
-export async function readOpenRouterSse(body, onDelta) {
+export async function readSse(body, onDelta, drain) {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buffered = "";
@@ -47,7 +48,7 @@ export async function readOpenRouterSse(body, onDelta) {
     let full = "";
     const take = (flush) => {
         const source = flush && buffered.length > 0 && !buffered.endsWith("\n") ? `${buffered}\n` : buffered;
-        const drained = drainOpenRouterSse(source, parsedThrough);
+        const drained = drain(source, parsedThrough);
         parsedThrough = drained.parsedThrough;
         if (flush)
             buffered = source;
@@ -66,4 +67,7 @@ export async function readOpenRouterSse(body, onDelta) {
     buffered += decoder.decode();
     take(true);
     return full;
+}
+export async function readOpenRouterSse(body, onDelta) {
+    return readSse(body, onDelta, drainOpenRouterSse);
 }

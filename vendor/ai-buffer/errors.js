@@ -1,3 +1,4 @@
+import { redactSecrets } from "./redact.js";
 export class AiBufferError extends Error {
     code;
     constructor(code, message) {
@@ -7,13 +8,17 @@ export class AiBufferError extends Error {
     }
 }
 export function openRouterHttpError(status, body) {
-    const error = new Error(`OpenRouter HTTP ${status}: ${body.slice(0, 300)}`);
+    return providerHttpError("OpenRouter", status, body);
+}
+export function providerHttpError(provider, status, body) {
+    const safe = redactSecrets(body).slice(0, 300);
+    const error = new Error(`${provider} HTTP ${status}: ${safe}`);
     error.status = status;
     return error;
 }
 export function formatAiError(error) {
     if (error instanceof AiBufferError)
-        return error.message;
+        return redactSecrets(error.message);
     if (error instanceof Error && error.name === "TimeoutError") {
         return "The AI request timed out.";
     }
@@ -31,9 +36,9 @@ export function formatAiError(error) {
         return "This AI feature requires a paid provider plan.";
     }
     if (typeof err?.message === "string" && err.message.trim()) {
-        return err.message;
+        return redactSecrets(err.message);
     }
-    return String(error);
+    return redactSecrets(String(error));
 }
 export function codeFor(error) {
     if (error instanceof AiBufferError)
@@ -59,7 +64,9 @@ export function codeFor(error) {
     return "provider_error";
 }
 export function asAiError(error) {
-    if (error instanceof AiBufferError)
-        return error;
+    if (error instanceof AiBufferError) {
+        const message = redactSecrets(error.message);
+        return message === error.message ? error : new AiBufferError(error.code, message);
+    }
     return new AiBufferError(codeFor(error), formatAiError(error));
 }
