@@ -136,13 +136,11 @@
         <div>
           <h3>Key files</h3>
           <p class="muted small">Auto-detected high-signal files. Click any file name to view it on GitHub.</p>
-          <p class="muted small">Puter runs first in this browser. An OpenRouter key saved here tries Space Bunny Alpha, then gpt-4o-mini. The key stays in this browser.</p>
         </div>
       </div>
       <form id="aiAsk" class="overview-card">
         <h4>Ask about this repo</h4>
-        <label class="muted small" for="aiKey">OpenRouter key, optional</label>
-        <input id="aiKey" type="password" class="search-input" placeholder="sk-or-..." autocomplete="off" />
+        <div id="aiProviders"></div>
         <label class="muted small" for="aiQuestion">Question</label>
         <input id="aiQuestion" type="text" class="search-input" placeholder="What should I read first?" />
         <button id="aiAskBtn" class="btn-secondary" type="button">Ask</button>
@@ -312,6 +310,7 @@
 <!-- JSZip for scaffold downloads -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <!-- D3 for graphs -->
+<script src="https://js.puter.com/v2/"></script>
 <script type="module" src="app-static.js"></script>
 
 </body>

@@ -47,11 +47,14 @@ repo-mapper-live/
 ├── index.html          # Single-page shell + mode nav
 ├── app-static.js       # All logic — GitHub API, D3, manifests, modes
 ├── app.css             # Cosmos design system styles
+├── ai-route.js         # Ask router. Puter, then the relay or a memory key
+├── api/ai.js           # Vercel relay for owner keys
+├── vendor/ai-buffer/   # ai-buffer v0.4.0 build
 ├── one-universe.yaml   # Built-in ONE Universe manifest
 └── multiverse.yaml     # Built-in ONE Multiverse manifest
 ```
 
-**Fully static — no backend required.** All GitHub API calls go directly to `api.github.com` from the browser. On Key Files, Ask uses [ai-buffer](https://github.com/noahnemo-rgb/ai-buffer-template) pinned at `d0c7cbc`. Puter runs first. An OpenRouter key saved in the browser tries Space Bunny Alpha, then gpt-4o-mini. The key is not stored on a server.
+GitHub API calls go directly to `api.github.com` from the browser. On Key Files, Ask uses [ai-buffer](https://github.com/noahnemo-rgb/ai-buffer-template) **v0.4.0**, tag `v0.4.0` at `b62ba5050643a7bf6e1e7da72b74f8bcbfc028a6`. Puter runs first in the browser. Owner keys stay in the Vercel environment and are read only by `api/ai.js`. A key typed on the page stays in memory for that load, and the page shows a masked hint. The GitHub Pages edition has no function of its own; it POSTs to `https://repo-mapper-live-8trm.vercel.app/api/ai`. The relay allows that Pages origin (`https://noahnemo-rgb.github.io`) and `https://repo-mapper-live-8trm.vercel.app`.
 
 ---
 

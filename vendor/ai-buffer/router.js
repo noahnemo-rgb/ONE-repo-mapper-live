@@ -1,6 +1,20 @@
-import { createOpenRouterClient, createPuterClient, createSpaceBunnyClient } from "./client.js";
+import { createGeminiClient, createLlmapiClient, createNvidiaClient, createOpenRouterClient, createPuterClient, createSpaceBunnyClient, createVercelGatewayClient, } from "./client.js";
 import { AiBufferError, asAiError } from "./errors.js";
 const FAILOVER_CODES = new Set(["missing_key", "signed_out", "rate_limited", "payment_required", "provider_error"]);
+/**
+ * Used when a call does not name a route.
+ * Space Bunny Alpha, then OpenRouter, then Puter, then the other configured routes.
+ * A route that was not passed in is skipped.
+ */
+export const DEFAULT_CALL_ORDER = [
+    "space-bunny",
+    "openrouter",
+    "puter",
+    "vercel-gateway",
+    "gemini",
+    "nvidia",
+    "llmapi",
+];
 function canFailover(error) {
     return error instanceof AiBufferError && FAILOVER_CODES.has(error.code);
 }
@@ -12,7 +26,15 @@ export function createCallRouter(options = {}) {
         clients.openrouter = createOpenRouterClient(options.openrouter);
     if (options.spaceBunny)
         clients["space-bunny"] = createSpaceBunnyClient(options.spaceBunny);
-    const defaultOrder = (options.order ?? ["space-bunny", "openrouter", "puter"]).filter((id) => clients[id]);
+    if (options.vercelGateway)
+        clients["vercel-gateway"] = createVercelGatewayClient(options.vercelGateway);
+    if (options.gemini)
+        clients.gemini = createGeminiClient(options.gemini);
+    if (options.nvidia)
+        clients.nvidia = createNvidiaClient(options.nvidia);
+    if (options.llmapi)
+        clients.llmapi = createLlmapiClient(options.llmapi);
+    const defaultOrder = (options.order ?? DEFAULT_CALL_ORDER).filter((id) => clients[id]);
     return {
         route(id) {
             const client = clients[id];
